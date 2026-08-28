@@ -65,9 +65,10 @@ def load_csv_safely(file_path: str) -> pd.DataFrame:
     return df
 
 def load_app_dataset() -> pd.DataFrame:
-    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    path = os.path.join(base_dir, "DATA", "Floodwatch_App_Data.csv")
-    return load_csv_safely(path)
+    current_file = Path(__file__).resolve()
+    base_dir = current_file.parent.parent.parent
+    path = base_dir / "DATA" / "Floodwatch_App_Data.csv"
+    return load_csv_safely(str(path))
 
 @st.cache_data(ttl=3600)
 def get_unified_survey_points() -> list[dict]:

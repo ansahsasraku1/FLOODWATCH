@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from torchvision import transforms, models
 from PIL import Image
+from pathlib import Path
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 MODEL_PATH = os.path.join(BASE_DIR, "MODELS", "drain_classifier.pth")
@@ -38,21 +39,23 @@ transform = transforms.Compose([
 ])
 
 def get_photo_path_by_id(photo_id: str) -> str:
-    """Locates photo path across ALL PHOTOS and APP/uploads directories safely."""
+    """Locates photo path safely across repository folders on Linux/Windows."""
     if not photo_id or str(photo_id).strip() == "" or str(photo_id).lower() == "nan":
         return ""
 
     photo_id_str = str(photo_id).strip()
-    
-    # Project root directory (FLOODWATCH_CODE)
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    
+
+    # Anchor properly to project root
+    # cv_inference.py -> services/ -> APP/ -> project root
+    current_file = Path(__file__).resolve()
+    project_root = current_file.parent.parent.parent
+
     search_dirs = [
-        os.path.join(project_root, "ALL PHOTOS"),
-        os.path.join(project_root, "APP", "uploads")
+        project_root / "ALL PHOTOS",
+        project_root / "APP" / "uploads"
     ]
-    
-    # Strip extension if present to avoid redundant double extensions
+
+    # Strip existing extensions
     clean_id = photo_id_str
     for ext in ['.jpg', '.jpeg', '.png', '.JPG', '.PNG', '.JPEG']:
         if clean_id.lower().endswith(ext.lower()):
@@ -60,16 +63,18 @@ def get_photo_path_by_id(photo_id: str) -> str:
             break
 
     for folder in search_dirs:
-        # 1. Direct match with original string
-        direct = os.path.join(folder, photo_id_str)
-        if os.path.exists(direct):
-            return direct
-            
-        # 2. Match clean ID with lowercase and uppercase extensions
-        for ext in ['.jpg', '.jpeg', '.png', '.JPG', '.PNG', '.JPEG']:
-            candidate = os.path.join(folder, f"{clean_id}{ext}")
-            if os.path.exists(candidate):
-                return candidate
+        if not folder.exists():
+            continue
+
+        # 1. Exact string match
+        direct = folder / photo_id_str
+        if direct.exists():
+            return str(direct)
+
+        # 2. Case-insensitive search across directory files (fixes Linux lower/upper extension issues)
+        for file in folder.iterdir():
+            if file.stem.lower() == clean_id.lower():
+                return str(file)
 
     return ""
 
