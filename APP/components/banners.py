@@ -3,7 +3,7 @@ import base64
 import streamlit as st
 from services.asset_paths import get_asset_path
 
-def render_video_banner(filename: str, height: int = 150):
+def render_video_banner(filename: str, height: int = 190):
     path = get_asset_path(filename)
     try:
         with open(path, "rb") as f:

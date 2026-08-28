@@ -31,13 +31,13 @@ def calculate_flood_risk(
     print("Flow accumulation",flow_acc_score)
     print("Risk_Score",risk_score)
     # Re-calibrated Classification Boundaries
-    if risk_score > 0.75:
+    if risk_score >= 0.75:
         category = "High"
         label = "High Flood Risk - please encourage community members to clear debris and other material from drains near you. This is important to ensure a safe environment before you leave home today."
-    elif risk_score > 0.5:
+    elif risk_score >= 0.5:
         category = "Moderately High"
         label = "Moderately High Flood Risk - please encourage community members to clear debris and other material from drains near you. This is important to ensure a safe environment before you leave home today."
-    elif risk_score > 0.25:
+    elif risk_score >= 0.25:
         category = "Moderately Low"
         label = "Moderately Low Flood Risk - clear debris and other material from drains near you"
     else:
