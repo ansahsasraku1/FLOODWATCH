@@ -1,0 +1,15 @@
+streamlit
+folium
+streamlit-folium
+pandas
+numpy
+pyproj
+plotly
+requests
+pillow
+scikit-learn
+streamlit-geolocation
+rasterio
+gTTS
+torch
+torchvision

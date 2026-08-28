@@ -1,0 +1,43 @@
+import streamlit as st
+import pandas as pd
+
+def render_flood_history():
+    """Renders historical flood logs and trend analysis."""
+    st.markdown("### Kisseman Flood History & Trends")
+    st.write("Historical heavy rainfall logs, recorded choke occurrences, and area trends.")
+
+    # High-level metrics
+    m1, m2, m3 = st.columns(3)
+    with m1:
+        st.metric("Recorded Major Events", "12 Events", "+2 in 2026")
+    with m2:
+        st.metric("Avg Peak Rainfall", "85.4 mm/day")
+    with m3:
+        st.metric("Primary Bottleneck", "West Legon Culvert")
+
+    st.markdown("---")
+
+    # Sample event history table
+    st.markdown("##### **Recent Severe Inundation Logs**")
+    
+    history_data = [
+        {"Date": "2026-06-12", "Rainfall (mm)": 94.2, "Severity": "High", "Affected Landmark": "Near Kisseman Market", "Primary Cause": "Severe Trash Blockage"},
+        {"Date": "2025-10-04", "Rainfall (mm)": 78.5, "Severity": "Moderately High", "Affected Landmark": "Taxi Rank Drain", "Primary Cause": "Silt Accumulation"},
+        {"Date": "2025-06-22", "Rainfall (mm)": 110.0, "Severity": "High", "Affected Landmark": "Primary Channel Outlet", "Primary Cause": "Culvert Capacity Exceeded"},
+        {"Date": "2024-07-15", "Rainfall (mm)": 62.1, "Severity": "Moderate High", "Affected Landmark": "Residential Bypass", "Primary Cause": "Partial Weed Choke"},
+    ]
+    
+    df_history = pd.DataFrame(history_data)
+    st.dataframe(df_history, use_container_width=True, hide_index=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("##### **Monthly Rainfall Trend vs Drain Overflow Threshold**")
+    
+    # Simple seasonal chart
+    trend_data = pd.DataFrame({
+        "Month": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+        "Avg Rainfall (mm)": [15, 25, 55, 90, 140, 210, 130, 45, 95, 120, 40, 20],
+        "Overflow Risk Threshold (mm)": [100] * 12
+    })
+    
+    st.line_chart(trend_data.set_index("Month"))

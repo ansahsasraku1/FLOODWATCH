@@ -1,0 +1,237 @@
+import os
+import streamlit as st
+import glob
+
+def render_risk_results(risk_data: dict, rainfall_data: dict, nearest_points: list, on_contribute_click=None):
+    """
+    Renders the flood risk score, 7-day rainfall forecast, 
+    and the nearest surveyed drainage point (with image preview and landmark name).
+    """
+    # Color badge styling mapped to risk category
+    risk_color_map = {
+        "High": {"bg": "#FF4D4D22", "border": "#FF4D4D", "text": "#FF4D4D", "icon": "🚨"},
+        "Moderately High": {"bg": "#FFA50022", "border": "#FFA500", "text": "#FFA500", "icon": "⚠️"},
+        "Moderately": {"bg": "#00A8E822", "border": "#00A8E8", "text": "#00A8E8", "icon": "⚡"},
+        "Low": {"bg": "#2EC4B622", "border": "#2EC4B6", "text": "#2EC4B6", "icon": "✅"}
+    }
+    
+    cat = risk_data.get('category', 'Low')
+    style = risk_color_map.get(cat, risk_color_map['Low'])
+
+    # 1. Primary Risk Banner Card
+    st.markdown(
+        f"""
+        <div style="background: {style['bg']}; border: 2px solid {style['border']}; border-radius: 16px; padding: 24px; text-align: center; margin-bottom: 20px;">
+            <div style="font-size: 2.5rem; margin-bottom: 5px;">{style['icon']}</div>
+            <h2 style="color: {style['text']}; margin: 0; font-size: 1.8rem; font-weight: 800;">
+                {risk_data.get('label', 'Assessment Unavailable')}
+            </h2>
+            <p style="color: #E2E8F0; font-size: 1rem; margin-top: 8px;">
+                Your current location is assessed with a <strong>{cat.lower()}</strong> risk score of 
+                <span style="font-weight: 700; color: {style['text']};">{risk_data.get('score', 0.0):.2f}</span>.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # 2. Nearest Survey Point Linked to Calculation (Photo & Name Focus)
+    if nearest_points:
+        top_pt = nearest_points[0]
+        landmark_name = top_pt.get('Nearest_Landmark') or top_pt.get('Landmark') or top_pt.get('Name') or "Linked Surveyed Drain"
+        dist = top_pt.get('distance_m', 0)
+        gutter_type = top_pt.get('Gutter_Type') or top_pt.get('Drain_Type') or "Drainage Channel"
+        pt_level = top_pt.get('Risk_Level', cat)
+        
+        # Check potential keys for photo path or URL
+        img_path = top_pt.get('Photo_ID') #or top_pt.get('Photo_ID') or top_pt.get('Photo_ID') or top_pt.get('Photo_ID')
+        print(top_pt.get('Photo_ID'))
+
+        file_path = "ALL PHOTOS/*.jpg"
+        img_files = glob.glob(file_path)
+        for path in img_files:
+        # Extract just the file name with extension
+           if os.path.basename(path).startswith(str(img_path)):
+                img_path = path
+                break
+        print(img_path)   
+           
+        # Layout: Photo on left, landmark details on right
+        col_img, col_info = st.columns([1, 2])
+        
+        with col_img:
+            if img_path and (os.path.exists(str(img_path)) or str(img_path).startswith('http')):
+                st.image(img_path, caption=f"Field Photo: {landmark_name}", use_container_width=True)
+            else:
+                # Fallback placeholder container if no image file exists
+                st.markdown(
+                    """
+                    <div style="background: rgba(255,255,255,0.05); border: 1px dashed rgba(255,255,255,0.2); border-radius: 10px; padding: 30px; text-align: center; color: #94A3B8;">
+                        📷 <br><span style="font-size: 0.8rem;">No Photo Available</span>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+        with col_info:
+            p_style = risk_color_map.get(pt_level, risk_color_map['Low'])
+            st.markdown(
+                f"""
+                <div style="background: rgba(255,255,255,0.03); border-left: 4px solid {p_style['border']}; padding: 16px; border-radius: 8px;">
+                    <h4 style="margin: 0 0 6px 0; color: #FFFFFF;">📍 {landmark_name}</h4>
+                    <p style="margin: 0; color: #94A3B8; font-size: 0.9rem;">
+                        <strong>Type:</strong> {gutter_type}<br>
+                        <strong>Proximity:</strong> {dist} meters away from your location<br>
+                        <strong> Drain Blockage Level:</strong> <span style="color: {p_style['text']}; font-weight: 700;">{pt_level}</span>
+                    </p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+    st.markdown("---")
+    #
+    st.markdown("##### **7-Day Rainfall Forecast**")
+
+dates = rainfall_data.get("dates", [])
+daily = rainfall_data.get("daily", [])
+
+# Temporary debug - remove later
+# st.write("DEBUG:", rainfall_data)
+
+if dates and daily:
+
+    # Calculate cumulative rainfall
+    total_rainfall = sum(daily)
+
+    st.markdown(
+        f"""
+        <div style="
+            background: rgba(0,168,232,0.1);
+            border: 1px solid #00A8E8;
+            border-radius: 10px;
+            padding: 12px;
+            text-align: center;
+            margin-bottom: 15px;
+        ">
+            <div style="font-size: 0.8rem; color: #94A3B8;">
+                Total Expected Rainfall
+            </div>
+
+            <div style="
+                font-size: 1.5rem;
+                font-weight: 800;
+                color: #00A8E8;
+            ">
+                {total_rainfall:.1f} mm
+            </div>
+
+            <div style="font-size: 0.75rem; color: #CBD5E1;">
+                Next 7 days
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    cols = st.columns(len(dates))
+
+    for idx, (d, val) in enumerate(zip(dates, daily)):
+
+        with cols[idx]:
+
+            st.markdown(
+                f"""
+                <div style="
+                    background: rgba(255,255,255,0.05);
+                    border-radius: 8px;
+                    padding: 10px 4px;
+                    text-align: center;
+                    border: 1px solid rgba(255,255,255,0.1);
+                ">
+
+                    <div style="
+                        font-size: 0.8rem;
+                        color: #94A3B8;
+                    ">
+                        {d}
+                    </div>
+
+                    <div style="
+                        font-size: 1rem;
+                        font-weight: 700;
+                        color: #00A8E8;
+                        margin-top: 4px;
+                    ">
+                        {val:.1f}
+                    </div>
+
+                    <div style="
+                        font-size: 0.65rem;
+                        color: #CBD5E1;
+                    ">
+                        mm
+                    </div>
+
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+else:
+
+    st.info("7-day rainfall forecast is currently unavailable.")
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+    # 4. Nearby Drainage Points List (~200m Radius)
+    st.markdown("##### **Other Nearby Drainage Points (1km Radius)**")
+    
+    if not nearest_points:
+        st.info("No surveyed drainage points found within 200m of your position.")
+        st.markdown(
+            """
+            <div style="background: rgba(0, 168, 232, 0.1); border: 1px dashed #00A8E8; padding: 15px; border-radius: 10px; text-align: center; margin-top: 10px;">
+                <p style="margin: 0 0 10px 0; color: #E2E8F0;">Help FloodWatch update your area's data.</p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+        if st.button("📍 Contribute a Drainage Point", type="primary", use_container_width=True):
+            if on_contribute_click:
+                on_contribute_click()
+    else:
+        closest_distance = nearest_points[0].get('distance_m', 0)
+        
+        # Display other points skipping top point if redundant, or list all
+        for pt in nearest_points:
+            pt_dist = pt.get('distance_m', 0)
+            pt_landmark = pt.get('Nearest_Landmark') or pt.get('Landmark') or pt.get('Name') or "Drainage Location"
+            pt_level = pt.get('Risk_Level', 'Low')
+            pt_gutter = pt.get('Gutter_Type', 'Drain')
+            
+            p_style = risk_color_map.get(pt_level, risk_color_map['Low'])
+            
+            st.markdown(
+                f"""
+                <div style="background: rgba(255,255,255,0.03); border-left: 4px solid {p_style['border']}; padding: 12px 16px; border-radius: 6px; margin-bottom: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="color: #FFFFFF;">{pt_landmark}</strong>
+                            <div style="font-size: 0.8rem; color: #94A3B8;">{pt_gutter} • {pt_dist} m away</div>
+                        </div>
+                        <span style="background: {p_style['bg']}; color: {p_style['text']}; border: 1px solid {p_style['border']}; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 700;">
+                            {pt_level}
+                        </span>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+        if closest_distance >= 50:
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.warning("Nearest surveyed point is over 50 meters away.")
+            if st.button("📍 Contribute a Drainage Point Nearby", type="primary", use_container_width=True):
+                if on_contribute_click:
+                    on_contribute_click()

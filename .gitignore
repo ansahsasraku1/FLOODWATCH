@@ -1,0 +1,12 @@
+# Exclude training photos and large folders
+ALL PHOTOS/
+DATASET/
+DATA/
+FIELD_DATA_backup/
+MODELS/
+
+# Python environment and cache
+.venv/
+__pycache__/
+*.pyc
+.env

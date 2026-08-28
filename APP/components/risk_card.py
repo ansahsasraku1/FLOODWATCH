@@ -1,0 +1,205 @@
+import os
+import streamlit as st
+import glob
+import plotly.express as px
+import pandas as pd
+from services.audio_guide import generate_twi_audio
+
+
+def render_risk_results(risk_data: dict, rainfall_data: dict, nearest_points: list, on_contribute_click=None):
+    """
+    Renders the flood risk score, 7-day rainfall forecast,
+    the nearest surveyed drainage point, and (optionally) the Twi audio guide.
+    """
+    risk_color_map = {
+        "High": {"bg": "#FF4D4D22", "border": "#FF4D4D", "text": "#FF4D4D", "icon": "🚨"},
+        "Moderately High": {"bg": "#FFA50022", "border": "#FFA500", "text": "#FFA500", "icon": "⚠️"},
+        "Moderately": {"bg": "#00A8E822", "border": "#00A8E8", "text": "#00A8E8", "icon": "⚡"},
+        "Low": {"bg": "#2EC4B622", "border": "#2EC4B6", "text": "#2EC4B6", "icon": "✅"}
+    }
+
+    cat = risk_data.get('category', 'Low')
+    score = risk_data.get('score', 0.0)
+    style = risk_color_map.get(cat, risk_color_map['Low'])
+
+    top_pt = nearest_points[0] if nearest_points else {}
+    landmark = top_pt.get('Nearest_Landmark') or "your area"
+
+    # 1. Primary Risk Banner Card
+    st.markdown(
+        f"""
+        <div style="background: {style['bg']}; border: 2px solid {style['border']}; border-radius: 16px; padding: 24px; text-align: center; margin-bottom: 20px;">
+            <div style="font-size: 2.5rem; margin-bottom: 5px;">{style['icon']}</div>
+            <h2 style="color: {style['text']}; margin: 0; font-size: 1.8rem; font-weight: 800;">
+                {risk_data.get('label', 'Assessment Unavailable')}
+            </h2>
+            <p style="color: #E2E8F0; font-size: 1rem; margin-top: 8px;">
+                Your current location is assessed with a <strong>{cat.lower()}</strong> risk score of
+                <span style="font-weight: 700; color: {style['text']};">{score:.2f}</span>.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # --- Audio Guide: always replace stale audio with the latest risk result ---
+    st.sidebar.markdown("### 🔊 Accessibility Settings")
+    enable_audio = st.sidebar.toggle("Enable Audio Guide", value=False, key="audio_toggle")
+
+    if enable_audio:
+        st.session_state.pop("risk_audio_bytes", None)
+        st.session_state.pop("risk_audio_key", None)
+        with st.spinner("Generating audio guide..."):
+            audio_fp = generate_twi_audio(cat, score, landmark)
+            st.session_state["risk_audio_bytes"] = audio_fp.getvalue()
+            st.session_state["risk_audio_key"] = f"risk:{cat}:{score:.4f}:{landmark}"
+    else:
+        st.session_state.pop("risk_audio_bytes", None)
+        st.session_state.pop("risk_audio_key", None)
+
+    # 2. Nearest Survey Point Linked to Calculation
+    if nearest_points:
+        dist = top_pt.get('distance_m', 0)
+        gutter_type = top_pt.get('Gutter_Type') or top_pt.get('Drain_Type') or "Drainage Channel"
+        pt_level = top_pt.get('Risk_Level', cat)
+
+        img_path = top_pt.get('Photo_ID')
+        file_path = "ALL PHOTOS/*.jpg"
+        img_files = glob.glob(file_path)
+        for path in img_files:
+            if os.path.basename(path).startswith(str(img_path)):
+                img_path = path
+                break
+
+        col_img, col_info = st.columns([1, 2])
+
+        with col_img:
+            if img_path and (os.path.exists(str(img_path)) or str(img_path).startswith('http')):
+                st.image(img_path, caption=f"Field Photo: {landmark}", use_container_width=True)
+            else:
+                st.markdown(
+                    """
+                    <div style="background: rgba(255,255,255,0.05); border: 1px dashed rgba(255,255,255,0.2); border-radius: 10px; padding: 30px; text-align: center; color: #94A3B8;">
+                        📷 <br><span style="font-size: 0.8rem;">No Photo Available</span>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+        with col_info:
+            p_style = risk_color_map.get(pt_level, risk_color_map['Low'])
+            st.markdown(
+                f"""
+                <div style="background: rgba(255,255,255,0.03); border-left: 4px solid {p_style['border']}; padding: 16px; border-radius: 8px;">
+                    <h4 style="margin: 0 0 6px 0; color: #FFFFFF;">📍 {landmark}</h4>
+                    <p style="margin: 0; color: #94A3B8; font-size: 0.9rem;">
+                        <strong>Type:</strong> {gutter_type}<br>
+                        <strong>Proximity:</strong> {dist} meters away from your location<br>
+                        <strong> Drain Blockage Level:</strong> <span style="color: {p_style['text']}; font-weight: 700;">{pt_level}</span>
+                    </p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+    st.markdown("---")
+    st.markdown("##### **7-Day Rainfall Forecast**")
+
+    # 3. Rainfall Forecast Display
+    dates = rainfall_data.get("dates", [])
+    daily = rainfall_data.get("daily", [])
+
+    if dates and daily:
+        total_rainfall = sum(daily)
+
+        st.markdown(
+            f"""
+            <div style="background: rgba(0,168,232,0.1); border: 1px solid #00A8E8; border-radius: 10px; padding: 12px; text-align: center; margin-bottom: 15px;">
+                <div style="font-size: 0.8rem; color: #94A3B8;">Total Expected Rainfall</div>
+                <div style="font-size: 1.5rem; font-weight: 800; color: #00A8E8;">{total_rainfall:.1f} mm</div>
+                <div style="font-size: 0.75rem; color: #CBD5E1;">Next 7 days</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        df_rain = pd.DataFrame({
+            "Date": dates,
+            "Rainfall (mm)": daily,
+            "Label": [f"{v:.1f} mm" for v in daily]
+        })
+
+        fig = px.bar(df_rain, x="Date", y="Rainfall (mm)", text="Label", title=None)
+        fig.update_traces(
+            marker_color="#00A8E8",
+            textposition="outside",
+            textfont=dict(color="#E2E8F0", size=12, family="sans-serif"),
+            hovertemplate="<b>Date:</b> %{x}<br><b>Rainfall:</b> %{y:.1f} mm<extra></extra>"
+        )
+        fig.update_layout(
+            height=280,
+            margin=dict(l=10, r=10, t=25, b=10),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            xaxis=dict(showgrid=False, tickfont=dict(color="#94A3B8", size=11), title=None),
+            yaxis=dict(
+                showgrid=True,
+                gridcolor="rgba(255, 255, 255, 0.1)",
+                tickfont=dict(color="#94A3B8", size=11),
+                title=dict(text="Precipitation (mm)", font=dict(color="#94A3B8", size=11))
+            )
+        )
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    else:
+        st.info("7-day rainfall forecast is currently unavailable.")
+
+    # 4. Nearby Drainage Points List
+    st.markdown("##### **Other Nearby Drainage Points (1km Radius)**")
+
+    if not nearest_points:
+        st.info("No surveyed drainage points found within 200m of your position.")
+        st.markdown(
+            """
+            <div style="background: rgba(0, 168, 232, 0.1); border: 1px dashed #00A8E8; padding: 15px; border-radius: 10px; text-align: center; margin-top: 10px;">
+                <p style="margin: 0 0 10px 0; color: #E2E8F0;">Help FloodWatch update your area's data.</p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+        if st.button("📍 Contribute a Drainage Point", type="primary", use_container_width=True):
+            if on_contribute_click:
+                on_contribute_click()
+    else:
+        closest_distance = nearest_points[0].get('distance_m', 0)
+
+        for pt in nearest_points:
+            pt_dist = pt.get('distance_m', 0)
+            pt_landmark = pt.get('Nearest_Landmark') or pt.get('Landmark') or pt.get('Name') or "Drainage Location"
+            pt_level = pt.get('Risk_Level', 'Low')
+            pt_gutter = pt.get('Gutter_Type', 'Drain')
+
+            p_style = risk_color_map.get(pt_level, risk_color_map['Low'])
+
+            st.markdown(
+                f"""
+                <div style="background: rgba(255,255,255,0.03); border-left: 4px solid {p_style['border']}; padding: 12px 16px; border-radius: 6px; margin-bottom: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="color: #FFFFFF;">{pt_landmark}</strong>
+                            <div style="font-size: 0.8rem; color: #94A3B8;">{pt_gutter} • {pt_dist} m away</div>
+                        </div>
+                        <span style="background: {p_style['bg']}; color: {p_style['text']}; border: 1px solid {p_style['border']}; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 700;">
+                            {pt_level}
+                        </span>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+        if closest_distance >= 50:
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.warning("Nearest surveyed point is over 50 meters away.")
+            if st.button("📍 Contribute a Drainage Point Nearby", type="primary", use_container_width=True):
+                if on_contribute_click:
+                    on_contribute_click()
