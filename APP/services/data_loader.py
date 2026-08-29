@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import streamlit as st
+from pathlib import Path
 from pyproj import Transformer
 
 # Initialize UTM 30N (Ghana EPSG:32630) to WGS84 Lat/Lon (EPSG:4326) Transformer
@@ -17,7 +18,6 @@ def load_csv_safely(file_path: str) -> pd.DataFrame:
             df = pd.read_csv(
                 file_path,
                 encoding=enc,
-                engine='python',
                 on_bad_lines='skip',
                 dtype=str,
                 keep_default_na=False
@@ -31,7 +31,6 @@ def load_csv_safely(file_path: str) -> pd.DataFrame:
             file_path,
             encoding='utf-8',
             encoding_errors='replace',
-            engine='python',
             on_bad_lines='skip',
             dtype=str,
             keep_default_na=False
@@ -67,7 +66,7 @@ def load_csv_safely(file_path: str) -> pd.DataFrame:
 def load_app_dataset() -> pd.DataFrame:
     current_file = Path(__file__).resolve()
     base_dir = current_file.parent.parent.parent
-    path = base_dir / "DATA" / "Floodwatch_App_Data.csv"
+    path = base_dir / "DATA" / "FloodWatch_App_Data.csv"
     return load_csv_safely(str(path))
 
 @st.cache_data(ttl=3600)

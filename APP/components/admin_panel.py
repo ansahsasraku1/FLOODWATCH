@@ -1,33 +1,63 @@
+import csv
 import os
-import json
+from pathlib import Path
+
 import streamlit as st
 
-UPLOADS_DIR = os.path.join(
-    os.path.dirname(__file__), "..", "uploads"
+from services.data_loader import get_unified_survey_points
+from services.admin_auth import ADMIN_USERS_CSV, authenticate
+from services.staging_service import (
+    HEADERS,
+    STAGING_CSV,
+    UPLOADS_DIR,
+    approve_submission,
+    migrate_pending_submissions,
+    reject_submission,
 )
 
-def get_pending_submissions() -> list[dict]:
-    """Retrieves all JSON submissions currently tagged as PENDING."""
-    if not os.path.exists(UPLOADS_DIR):
-        return []
 
-    submissions = []
-    for file in os.listdir(UPLOADS_DIR):
-        if file.endswith(".json"):
-            file_path = os.path.join(UPLOADS_DIR, file)
-            with open(file_path, "r") as f:
-                data = json.load(f)
-                if data.get("status") == "PENDING":
-                    data["_json_path"] = file_path
-                    submissions.append(data)
-    return submissions
+def get_pending_submissions() -> list[dict]:
+    """Read pending camera submissions from the CSV staging queue."""
+    rows = migrate_pending_submissions()
+    return [row for row in rows if row.get("Status", "").lower() == "pending approval"]
+
+
+def _save_remaining_submissions(submissions: list[dict]) -> None:
+    with open(STAGING_CSV, "w", newline="", encoding="utf-8") as file:
+        writer = csv.DictWriter(file, fieldnames=HEADERS)
+        writer.writeheader()
+        writer.writerows(submissions)
+
+
+def _display_number(value, decimals=5):
+    try:
+        return f"{float(value):.{decimals}f}"
+    except (TypeError, ValueError):
+        return "N/A"
+
 
 def render_admin_panel():
-    """
-    Renders the administrator queue for reviewing and verifying citizen contributions.
-    """
+    """Render the administrator queue for reviewing citizen contributions."""
+    if not st.session_state.get("admin_authenticated", False):
+        st.markdown("### Licensed Administrator Sign In")
+        if not os.path.exists(ADMIN_USERS_CSV):
+            st.error("Administrator account file is missing.")
+            return
+        with st.form("admin_login"):
+            username = st.text_input("Username")
+            password = st.text_input("Password", type="password")
+            submitted = st.form_submit_button("Sign in", type="primary")
+        if submitted:
+            if authenticate(username, password):
+                st.session_state.admin_authenticated = True
+                st.rerun()
+            st.error("Invalid administrator credentials.")
+        return
+
     st.markdown("### 🛠️ Administrator Verification Hub")
-    
+    if st.button("Sign out", key="admin_sign_out"):
+        st.session_state.admin_authenticated = False
+        st.rerun()
     pending_list = get_pending_submissions()
     st.metric("Pending Citizen Submissions", len(pending_list))
 
@@ -36,64 +66,60 @@ def render_admin_panel():
         return
 
     st.markdown("---")
+    for submission in pending_list:
+        submission_id = submission.get("Survey_ID", "Unknown")
+        photo_name = Path(submission.get("Photo_ID", "")).name
+        image_path = os.path.join(UPLOADS_DIR, photo_name)
+        landmark = submission.get("Landmark_Notes") or "Unknown landmark"
 
-    for sub in pending_list:
-        sub_id = sub["submission_id"]
-        json_path = sub["_json_path"]
-        img_path = os.path.join(UPLOADS_DIR, sub.get("image_filename", ""))
-
-        with st.expander(f"📌 Submission {sub_id} — {sub.get('nearest_landmark', 'Unknown')}"):
-            col1, col2 = st.columns([1, 1])
-            
-            with col1:
-                if os.path.exists(img_path):
-                    st.image(img_path, caption=f"Submitted Image ({sub_id})", use_column_width=True)
+        with st.expander(f"📌 Submission {submission_id} — {landmark}"):
+            col_image, col_details = st.columns([1, 1])
+            with col_image:
+                if os.path.exists(image_path):
+                    st.image(image_path, caption=f"Submitted Image ({submission_id})", use_container_width=True)
                 else:
                     st.warning("Photograph unavailable.")
 
-            with col2:
+            with col_details:
                 st.markdown(
-                    f"""
-                    <strong>Timestamp:</strong> {sub.get('timestamp')}<br>
-                    <strong>Coordinates:</strong> {sub.get('latitude'):.5f}, {sub.get('longitude'):.5f}<br>
-                    <strong>Landmark:</strong> {sub.get('nearest_landmark')}<br>
-                    <strong>Size Category:</strong> {sub.get('drain_size')}<br>
-                    <strong>Citizen Verification:</strong> <span style="color:#2EC4B6;">{sub.get('citizen_verification')}</span>
-                    """,
-                    unsafe_allow_html=True
-                )
-                
-                cv = sub.get("cv_assessment", {})
-                st.markdown(
-                    f"""
-                    <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 6px; margin-top: 10px; border: 1px solid rgba(255,255,255,0.1);">
-                        <strong style="color:#00A8E8;">Computer Vision Inference:</strong><br>
-                        Blockage: {cv.get('blockage_category', 'N/A')}<br>
-                        Confidence: {int(cv.get('confidence', 0) * 100)}%
-                    </div>
-                    """,
-                    unsafe_allow_html=True
+                    f"**Timestamp:** {submission.get('Timestamp', 'N/A')}  \n"
+                    f"**Coordinates:** {_display_number(submission.get('Latitude'))}, "
+                    f"{_display_number(submission.get('Longitude'))}  \n"
+                    f"**Landmark:** {landmark}  \n"
+                    f"**Drain type:** {submission.get('Drain_Type', 'N/A')}  \n"
+                    f"**AI condition:** {submission.get('AI_Suggested_Blockage', 'N/A')}  \n"
+                    f"**Choke code:** {submission.get('Choke_Code', 'N/A')}  \n"
+                    f"**LULC:** {submission.get('LULC_Class', 'NULL')}  \n"
+                    f"**DEM:** {submission.get('DEM_Value', 'N/A')}  \n"
+                    f"**Slope:** {submission.get('Slope', 'N/A')}  \n"
+                    f"**Flow accumulation:** {submission.get('FlowAccumulation', 'N/A')}  \n"
+                    f"**Slope score:** {submission.get('Slope_Score', 'N/A')}  \n"
+                    f"**Flow score:** {submission.get('FlowAcc_Score', 'N/A')}"
                 )
 
-            st.markdown("<br>", unsafe_allow_html=True)
-            btn_col1, btn_col2 = st.columns(2)
-            
-            with btn_col1:
-                if st.button("✅ APPROVE (Promote to Verified)", key=f"app_{sub_id}", type="primary", use_container_width=True):
-                    # Update status to APPROVED
-                    sub["status"] = "APPROVED"
-                    del sub["_json_path"]
-                    with open(json_path, "w") as f:
-                        json.dump(sub, f, indent=2)
-                    st.success(f"Submission {sub_id} approved!")
-                    st.rerun()
+            approve_col, reject_col = st.columns(2)
+            with approve_col:
+                if st.button("✅ Approve and publish", key=f"approve_{submission_id}", type="primary", use_container_width=True):
+                    try:
+                        approve_submission(submission)
+                        remaining = [
+                            item for item in pending_list
+                            if item.get("Survey_ID") != submission_id
+                        ]
+                        _save_remaining_submissions(remaining)
+                        get_unified_survey_points.clear()
+                        st.success("Submission approved, photo published, and survey data updated.")
+                        st.rerun()
+                    except Exception as error:
+                        st.error(f"Approval failed: {error}")
 
-            with btn_col2:
-                if st.button("❌ REJECT", key=f"rej_{sub_id}", use_container_width=True):
-                    # Update status to REJECTED
-                    sub["status"] = "REJECTED"
-                    del sub["_json_path"]
-                    with open(json_path, "w") as f:
-                        json.dump(sub, f, indent=2)
-                    st.error(f"Submission {sub_id} rejected.")
+            with reject_col:
+                if st.button("❌ Reject", key=f"reject_{submission_id}", use_container_width=True):
+                    reject_submission(submission)
+                    remaining = [
+                        item for item in pending_list
+                        if item.get("Survey_ID") != submission_id
+                    ]
+                    _save_remaining_submissions(remaining)
+                    st.success("Submission rejected and removed from the queue.")
                     st.rerun()

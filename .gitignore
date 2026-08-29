@@ -10,3 +10,4 @@ MODELS/
 __pycache__/
 *.pyc
 .env
+APP/admin_users.csv

@@ -1,9 +1,9 @@
 import os
 import streamlit as st
-import glob
 import plotly.express as px
 import pandas as pd
 from services.audio_guide import generate_twi_audio
+from services.cv_inference import get_photo_path_by_id
 
 
 def render_risk_results(risk_data: dict, rainfall_data: dict, nearest_points: list, on_contribute_click=None):
@@ -63,13 +63,7 @@ def render_risk_results(risk_data: dict, rainfall_data: dict, nearest_points: li
         gutter_type = top_pt.get('Gutter_Type') or top_pt.get('Drain_Type') or "Drainage Channel"
         pt_level = top_pt.get('Risk_Level', cat)
 
-        img_path = top_pt.get('Photo_ID')
-        file_path = "ALL PHOTOS/*.jpg"
-        img_files = glob.glob(file_path)
-        for path in img_files:
-            if os.path.basename(path).startswith(str(img_path)):
-                img_path = path
-                break
+        img_path = get_photo_path_by_id(top_pt.get('Photo_ID', ''))
 
         col_img, col_info = st.columns([1, 2])
 

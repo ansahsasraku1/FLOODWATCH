@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from torchvision import transforms, models
 from PIL import Image
+import streamlit as st
 from pathlib import Path
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -19,13 +20,14 @@ CLASS_MAPPING = {
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 @torch.no_grad()
+@st.cache_resource(show_spinner=False)
 def load_trained_model():
     if not os.path.exists(MODEL_PATH):
         return None
     model = models.mobilenet_v3_small(weights=None)
     num_features = model.classifier[3].in_features
     model.classifier[3] = nn.Linear(num_features, 5)
-    model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
+    model.load_state_dict(torch.load(MODEL_PATH, map_location=device, weights_only=True))
     model.to(device)
     model.eval()
     return model
@@ -37,6 +39,17 @@ transform = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
+
+@st.cache_data(show_spinner=False)
+def _photo_index(folder: str) -> dict[str, str]:
+    path = Path(folder)
+    if not path.is_dir():
+        return {}
+    return {
+        file.stem.lower(): str(file)
+        for file in path.iterdir()
+        if file.is_file()
+    }
 
 def get_photo_path_by_id(photo_id: str) -> str:
     """Locates photo path safely across repository folders on Linux/Windows."""
@@ -71,10 +84,10 @@ def get_photo_path_by_id(photo_id: str) -> str:
         if direct.exists():
             return str(direct)
 
-        # 2. Case-insensitive search across directory files (fixes Linux lower/upper extension issues)
-        for file in folder.iterdir():
-            if file.stem.lower() == clean_id.lower():
-                return str(file)
+        # 2. Use a cached index for case-insensitive matches.
+        indexed_path = _photo_index(str(folder)).get(clean_id.lower())
+        if indexed_path:
+            return indexed_path
 
     return ""
 
