@@ -1,7 +1,6 @@
 import os
 import pandas as pd
 import streamlit as st
-from pathlib import Path
 from pyproj import Transformer
 
 # Initialize UTM 30N (Ghana EPSG:32630) to WGS84 Lat/Lon (EPSG:4326) Transformer
@@ -64,10 +63,10 @@ def load_csv_safely(file_path: str) -> pd.DataFrame:
     return df
 
 def load_app_dataset() -> pd.DataFrame:
-    current_file = Path(__file__).resolve()
-    base_dir = current_file.parent.parent.parent
-    path = base_dir / "DATA" / "FloodWatch_App_Data.csv"
-    return load_csv_safely(str(path))
+    # Resolve from this file so the app works regardless of Streamlit's working directory.
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    path = os.path.join(base_dir, "DATA", "FloodWatch_App_Data.csv")
+    return load_csv_safely(path)
 
 @st.cache_data(ttl=3600)
 def get_unified_survey_points() -> list[dict]:

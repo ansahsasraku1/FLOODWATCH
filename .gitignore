@@ -2,6 +2,13 @@
 ALL PHOTOS/
 DATASET/
 DATA/
+!DATA/
+DATA/*
+!DATA/FloodWatch_App_Data.csv
+!DATA/Kisseman_lulc.tif
+!DATA/Kisseman_slope.tif
+!DATA/Kisseman_facc.tif
+!DATA/Kisseman_dem.tif
 FIELD_DATA_backup/
 MODELS/
 
