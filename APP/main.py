@@ -19,12 +19,6 @@ from services.logger import log_prediction
 # Component Imports
 from components.splash import render_splash
 from components.sidebar import render_sidebar
-from components.risk_card import render_risk_results
-from components.camera import render_camera_workflow
-from components.admin_panel import render_admin_panel
-from components.map_view import render_interactive_map
-from components.gallery import render_community_gallery
-from components.banners import render_video_banner, render_image_banner
 
 #from components.flood_history import render_flood_history
 
@@ -47,6 +41,9 @@ else:
     # ROUTE 1: CHECK MY FLOOD RISK
     # ------------------------------------------------------------------
     if active_route == "Check My Risk":
+        from components.banners import render_video_banner
+        from components.risk_card import render_risk_results
+
         #st.markdown("## 🌧️ Check My Flood Risk")
         #st.write("View real-time risk scores based on local terrain, current 7-day rainfall, and nearby drainage conditions.")
         #render_video_banner("floodwatch_banner.mp4", height=220)
@@ -128,6 +125,8 @@ else:
     # ROUTE 2: INTERACTIVE MAP
     # ------------------------------------------------------------------
     elif active_route == "Interactive Map":
+        from components.map_view import render_interactive_map
+
         # Load dataset on-demand for map rendering
         survey_points = get_unified_survey_points()
         render_interactive_map(
@@ -140,6 +139,8 @@ else:
     # ROUTE 5: USER GUIDE
     # ------------------------------------------------------------------
     elif active_route == "User Guide":
+        from components.banners import render_image_banner
+
         #st.markdown("## 📖 FloodWatch User Guide")
         render_image_banner("user_guide.jpg")
         st.markdown(
@@ -153,6 +154,8 @@ else:
     # ROUTE 4: COMMUNITY GALLERY
     # ------------------------------------------------------------------
     elif active_route == "Community Gallery":
+        from components.gallery import render_community_gallery
+
         # Load dataset on-demand for gallery grid
         survey_points = get_unified_survey_points()
         render_community_gallery(survey_points)
@@ -160,12 +163,17 @@ else:
     # ROUTE 6: REPORT ISSUE / CONTRIBUTE (CAMERA)
     # ------------------------------------------------------------------
     elif active_route == "Report Issue":
+        from components.camera import render_camera_workflow
+
         render_camera_workflow(st.session_state.user_lat, st.session_state.user_lng)
 
     # ------------------------------------------------------------------
     # ROUTE 7: DEVELOPER HUB & ADMIN PANEL
     # ------------------------------------------------------------------
     elif active_route == "Developer Hub":
+        from components.admin_panel import render_admin_panel
+        from components.banners import render_image_banner
+
         #st.markdown("## 👨🏾‍💻 Developer & System Hub")
         render_image_banner("dev_hub.jpg")
         

@@ -16,7 +16,7 @@ def generate_twi_audio(category: str, score: float, landmark: str):
 
     advice_twi = twi_explanations.get(
         category, 
-        "Yɛsrɛ wo, hwɛ wo mpɔtam nsuka yiye na siesie kwan ma nsuo asen."
+        ""
     )
 
     # Construct full script: English key summary + Twi contextual explanation
