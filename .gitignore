@@ -11,10 +11,11 @@ DATA/*
 !DATA/Kisseman_dem.tif
 FIELD_DATA_backup/
 MODELS/
+!MODELS/
+!MODELS/drain_classifier.pth
 
 # Python environment and cache
 .venv/
 __pycache__/
 *.pyc
 .env
-APP/admin_users.csv

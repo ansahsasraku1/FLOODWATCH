@@ -1,7 +1,4 @@
 import os
-import torch
-import torch.nn as nn
-from torchvision import transforms, models
 from PIL import Image
 import streamlit as st
 from pathlib import Path
@@ -17,13 +14,15 @@ CLASS_MAPPING = {
     4: {"condition": "Severely Blocked (75–100%)", "score": 1.00, "code": 4, "is_drain": True}
 }
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-@torch.no_grad()
 @st.cache_resource(show_spinner=False)
 def load_trained_model():
+    import torch
+    import torch.nn as nn
+    from torchvision import models
+
     if not os.path.exists(MODEL_PATH):
         return None
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model = models.mobilenet_v3_small(weights=None)
     num_features = model.classifier[3].in_features
     model.classifier[3] = nn.Linear(num_features, 5)
@@ -32,13 +31,15 @@ def load_trained_model():
     model.eval()
     return model
 
-MODEL = load_trained_model()
+@st.cache_resource(show_spinner=False)
+def get_image_transform():
+    from torchvision import transforms
 
-transform = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.ToTensor(),
-    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-])
+    return transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    ])
 
 @st.cache_data(show_spinner=False)
 def _photo_index(folder: str) -> dict[str, str]:
@@ -93,6 +94,8 @@ def get_photo_path_by_id(photo_id: str) -> str:
 
 def analyze_drain_image(image_input) -> dict:
     try:
+        import torch
+
         if isinstance(image_input, (str, bytes)):
             img = Image.open(image_input).convert("RGB")
         elif hasattr(image_input, "read"):
@@ -102,20 +105,23 @@ def analyze_drain_image(image_input) -> dict:
         else:
             raise ValueError("Unsupported image format.")
 
-        if MODEL is None:
+        model = load_trained_model()
+        if model is None:
             return {
                 "success": False,
-                "is_drain": True,
-                "error": "Model file missing.",
-                "block_score": 0.50,
-                "choke_code": 2,
-                "predicted_condition": "Minor Blockage (25–50%)",
+                "is_drain": False,
+                "error": "Computer vision model is unavailable. Please try again later.",
+                "block_score": 0.0,
+                "choke_code": 0,
+                "predicted_condition": "Model unavailable",
                 "confidence": 0.0
             }
 
-        input_tensor = transform(img).unsqueeze(0).to(device)
-        outputs = MODEL(input_tensor)
-        probabilities = torch.nn.functional.softmax(outputs, dim=1)[0]
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        input_tensor = get_image_transform()(img).unsqueeze(0).to(device)
+        with torch.no_grad():
+            outputs = model(input_tensor)
+            probabilities = torch.nn.functional.softmax(outputs, dim=1)[0]
         
         top_prob, pred_class = torch.max(probabilities, 0)
         confidence = top_prob.item()
