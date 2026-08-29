@@ -139,18 +139,9 @@ else:
     # ROUTE 5: USER GUIDE
     # ------------------------------------------------------------------
     elif active_route == "User Guide":
-        from components.banners import render_image_banner
+        from components.user_guide import render_user_guide
 
-        #st.markdown("## 📖 FloodWatch User Guide")
-        render_image_banner("user_guide.jpg")
-        st.markdown(
-            """
-            * **Check My Risk:** Pinpoint your location to assess immediate flood susceptibility based on local terrain elevation, drainage blockage, and 7-day cumulative rainfall.
-            * **Flood Map:** Explore surveyed drainage infrastructure across Kisseman with color-coded risk markers and field photo details.
-            * **Report an Issue:** Use your mobile camera to document clogged drains or stagnant water. Your contribution undergoes AI classification and admin verification.
-            * **Community Gallery:** Browse historical and recent field observations collected by community members and field teams.
-            """
-        )
+        render_user_guide()
     # ROUTE 4: COMMUNITY GALLERY
     # ------------------------------------------------------------------
     elif active_route == "Community Gallery":
@@ -187,9 +178,9 @@ else:
                 
                 {DEVELOPER_PROFILE['bio']}
                 
-                **Email:** {DEVELOPER_PROFILE['contact']['email2']} 
+                **Primary Email:** {DEVELOPER_PROFILE['contact']['email']} 
 
-                **Alt Email:** {DEVELOPER_PROFILE['contact']['email']} 
+                **Alternative Email:** {DEVELOPER_PROFILE['contact']['email2']} 
 
                 **Phone:** {DEVELOPER_PROFILE['contact']['phone']}  
                 
