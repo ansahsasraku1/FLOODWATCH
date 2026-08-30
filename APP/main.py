@@ -9,6 +9,13 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+st.markdown(
+    '<link rel="manifest" href="/app/static/manifest.json">'
+    '<meta name="application-name" content="FLOODWATCH">'
+    '<meta name="apple-mobile-web-app-title" content="FLOODWATCH">'
+    '<link rel="apple-touch-icon" href="/app/static/logo.jpg">',
+    unsafe_allow_html=True,
+)
 
 # Services & Config Imports
 from services.data_loader import get_unified_survey_points

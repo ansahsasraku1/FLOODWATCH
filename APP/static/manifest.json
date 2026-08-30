@@ -1,0 +1,16 @@
+{
+  "name": "FLOODWATCH",
+  "short_name": "FLOODWATCH",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#00a8e8",
+  "icons": [
+    {
+      "src": "/app/static/logo.jpg",
+      "sizes": "2000x2000",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}
