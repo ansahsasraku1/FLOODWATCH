@@ -19,24 +19,27 @@ def render_camera_workflow(user_lat=None, user_lng=None):
         "APP", "assets", "intro_guide.mp4"
     )
     if os.path.exists(video_path):
-        st.video(video_path)
+        st.video(video_path, autoplay=True, muted=True)
     else:
         st.info("📹 Intro guide video not found.")
 
     st.markdown("---")
 
     # --- Live Geolocation Capture ---
-    st.subheader("1. Location Capture")
+    st.subheader("1. Please allow location access and move to step 2")
 
     fallback_lat = user_lat if user_lat is not None else st.session_state.get("user_lat", 5.65231)
     fallback_lng = user_lng if user_lng is not None else st.session_state.get("user_lng", -0.18742)
 
+    st.subheader("1. Please allow location access and move to step 2")
     location = streamlit_geolocation()
 
     if location and location.get("latitude") is not None and location.get("longitude") is not None:
         fallback_lat = location["latitude"]
         fallback_lng = location["longitude"]
         st.success(f"Location captured: {fallback_lat:.6f}, {fallback_lng:.6f}")
+    else:
+        st.warning("Location permission required. Please allow access to your location in the browser and refresh the page.")
 
     col1, col2 = st.columns(2)
     with col1:

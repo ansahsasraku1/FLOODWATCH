@@ -48,14 +48,14 @@ else:
         #st.write("View real-time risk scores based on local terrain, current 7-day rainfall, and nearby drainage conditions.")
         #render_video_banner("floodwatch_banner.mp4", height=220)
         render_video_banner("check_risk.mp4")
-        st.write("View real-time risk scores based on local terrain, current 7-day rainfall, and nearby drainage conditions.")
+        st.write("View real-time risk scores based on local terrain, rainfall prediction, and nearby drainage conditions.")
 
 
 
         # Load dataset on-demand for this view
         survey_points = get_unified_survey_points()
 
-        # --- Auto-capture location (one tap, browser permission required) ---
+        # --- Browser geolocation button ---
         st.markdown("##### 📍 Use my current location")
         location = streamlit_geolocation()
 
@@ -63,6 +63,8 @@ else:
             st.session_state.user_lat = location["latitude"]
             st.session_state.user_lng = location["longitude"]
             st.success(f"Location captured: {location['latitude']:.5f}, {location['longitude']:.5f}")
+        else:
+            st.warning("Location permission required. Please allow access to your location in the browser and refresh the page.")
 
         # Coordinate inputs (manual override / fallback)
         col_a, col_b = st.columns(2)
@@ -79,7 +81,7 @@ else:
 
         if nearby:
             top = nearby[0]
-            st.info(f"📍 Linked to nearest survey point **{top.get('Nearest_Landmark', 'Point')}** ({top['distance_m']}m away)")
+            st.info(f"📍 This prediction is in connection with drainage system around **{top.get('Nearest_Landmark', 'Point')}** ({top['distance_m']}m away)")
             blk = float(top.get('BlockScore', 0.2))
             slp = float(top.get('Slope_Score', 0.2))
             flw = float(top.get('FlowAcc_Score', 0.0))
@@ -142,6 +144,15 @@ else:
         from components.user_guide import render_user_guide
 
         render_user_guide()
+    
+    # ------------------------------------------------------------------
+    # ROUTE 5B: CHATBOT
+    # ------------------------------------------------------------------
+    elif active_route == "Chatbot":
+        from components.chatbot import render_chatbot
+
+        render_chatbot()
+    
     # ROUTE 4: COMMUNITY GALLERY
     # ------------------------------------------------------------------
     elif active_route == "Community Gallery":
@@ -171,21 +182,20 @@ else:
         tab1, tab2 = st.tabs(["Developer Profile", "Admin Moderation Queue"])
         
         with tab1:
+            st.markdown(f"### {DEVELOPER_PROFILE['name']}")
+            st.markdown(f"{DEVELOPER_PROFILE['title']}")
             st.markdown(
                 f"""
-                ### {DEVELOPER_PROFILE['name']}
-                **{DEVELOPER_PROFILE['title']}**
-                
+                <div style="text-align: justify;">
                 {DEVELOPER_PROFILE['bio']}
-                
-                **Primary Email:** {DEVELOPER_PROFILE['contact']['email']} 
-
-                **Alternative Email:** {DEVELOPER_PROFILE['contact']['email2']} 
-
-                **Phone:** {DEVELOPER_PROFILE['contact']['phone']}  
-                
-                **Location:** {DEVELOPER_PROFILE['contact']['location']}
-                """
+                <br><br>
+                <strong>Primary Email:</strong> {DEVELOPER_PROFILE['contact']['email_link']}<br>
+                <strong>Alternative Email:</strong> {DEVELOPER_PROFILE['contact']['email2_link']}<br>
+                <strong>Phone:</strong> {DEVELOPER_PROFILE['contact']['phone_link']}<br>
+                <strong>Location:</strong> {DEVELOPER_PROFILE['contact']['location']}
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
             st.markdown("##### **Built With**")
             st.write(", ".join(DEVELOPER_PROFILE['tools']))

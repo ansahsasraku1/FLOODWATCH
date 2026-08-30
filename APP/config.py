@@ -29,3 +29,10 @@ For Dennis, FloodWatch is more than an application; it is a step toward using te
         "ArcGIS Pro",
     ]
 }
+
+# Plain-text links for developer profile display.
+# These render as normal text links and avoid Streamlit button/container styling.
+phone_clean = DEVELOPER_PROFILE["contact"]["phone"].replace("+", "").replace(" ", "")
+DEVELOPER_PROFILE["contact"]["email_link"] = f"[{DEVELOPER_PROFILE['contact']['email']}](mailto:{DEVELOPER_PROFILE['contact']['email']})"
+DEVELOPER_PROFILE["contact"]["email2_link"] = f"[{DEVELOPER_PROFILE['contact']['email2']}](mailto:{DEVELOPER_PROFILE['contact']['email2']})"
+DEVELOPER_PROFILE["contact"]["phone_link"] = f"[{DEVELOPER_PROFILE['contact']['phone']}](https://wa.me/{phone_clean})"

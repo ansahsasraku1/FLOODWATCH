@@ -159,18 +159,20 @@ else:
         tab1, tab2 = st.tabs(["Developer Profile", "Admin Moderation Queue"])
         
         with tab1:
+            st.markdown(f"### {DEVELOPER_PROFILE['name']}")
+            st.markdown(f"{DEVELOPER_PROFILE['title']}")
             st.markdown(
                 f"""
-                ### {DEVELOPER_PROFILE['name']}
-                **{DEVELOPER_PROFILE['title']}**
-                
+                <div style="text-align: justify;">
                 {DEVELOPER_PROFILE['bio']}
-                
-                **Primary Email:** {DEVELOPER_PROFILE['contact']['email']}  
-                **Alternative Email:** {DEVELOPER_PROFILE['contact']['email2']}  
-                **Phone:** {DEVELOPER_PROFILE['contact']['phone']}  
-                **Location:** {DEVELOPER_PROFILE['contact']['location']}
-                """
+                <br><br>
+                <strong>Primary Email:</strong> {DEVELOPER_PROFILE['contact']['email_link']}<br>
+                <strong>Alternative Email:</strong> {DEVELOPER_PROFILE['contact']['email2_link']}<br>
+                <strong>Phone:</strong> {DEVELOPER_PROFILE['contact']['phone_link']}<br>
+                <strong>Location:</strong> {DEVELOPER_PROFILE['contact']['location']}
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
             st.markdown("##### **Built With**")
             st.write(", ".join(DEVELOPER_PROFILE['tools']))

@@ -10,15 +10,15 @@ def render_sidebar() -> str:
         st.markdown(
             f"""
             <div style="text-align: center; padding: 10px 0 20px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                <h1 style="color: #00A8E8; font-size: 1.8rem; margin: 0; font-weight: 800;">🌊 FLOODWATCH</h1>
-                <p style="color: #94A3B8; font-size: 0.85rem; margin-top: 4px;">{LOCATION_NAME}</p>
+                <h1 style="color: #00A8E8; font-size: 1.8rem; margin: 0; font-weight: 800;">FLOODWATCH</h1>
+                <p style="color: #94A3B8; font-size: 1rem; margin-top: 4px;">{LOCATION_NAME}</p>
             </div>
             """,
             unsafe_allow_html=True
         )
-
+#🌊 
         st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("---")
+        #st.markdown("---")
 
         # Persistent Audio Advisory Player for the latest result only
         latest_audio_key = st.session_state.get("risk_audio_key")
@@ -35,6 +35,7 @@ def render_sidebar() -> str:
             #"Flood History": "📜 Flood History",
             "Community Gallery": "🖼️ Community Gallery",
             "User Guide": "📖 User Guide",
+            "Chatbot": "-🤖- FloodWatch Assistant",
             "Developer Hub": "👨🏾‍💻 Developer Hub",
             "Report Issue": "🚨 Report an Issue"
         }

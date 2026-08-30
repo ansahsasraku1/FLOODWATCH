@@ -13,3 +13,6 @@ rasterio
 gTTS
 torch
 torchvision
+supabase
+google-generativeai
+google-genai
