@@ -31,7 +31,7 @@ def render_camera_workflow(user_lat=None, user_lng=None):
     fallback_lat = user_lat if user_lat is not None else st.session_state.get("user_lat", 5.65231)
     fallback_lng = user_lng if user_lng is not None else st.session_state.get("user_lng", -0.18742)
 
-    st.subheader("1. Please allow location access and move to step 2")
+    #st.subheader("1. Please allow location access and move to step 2")
     location = streamlit_geolocation()
 
     if location and location.get("latitude") is not None and location.get("longitude") is not None:
@@ -92,7 +92,7 @@ def render_camera_workflow(user_lat=None, user_lng=None):
                     ]
                 )
 
-                landmark_notes = st.text_input("Landmark / Location Notes", placeholder="e.g. Near Assemblies of God Church")
+                landmark_notes = st.text_input("Landmark / Location Notes", placeholder="e.g. Near Assemblies of God Church, Opposite Shell Petrol Station, etc.")
 
                 submit_btn = st.form_submit_button("Submit Field Report")
 

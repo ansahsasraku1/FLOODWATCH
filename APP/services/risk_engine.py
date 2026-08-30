@@ -13,12 +13,12 @@ def calculate_flood_risk(
     rainfall_score = round(min(float(rainfall_mm), max_rain_baseline) / max_rain_baseline, 4)
 
     risk_score = (
-        (0.30 * float(block_score)) +
-        (0.20 * rainfall_score) +
+        (0.20 * float(block_score)) +
+        (0.30 * rainfall_score) +
         (0.15 * float(slope_score)) +
         (0.15 * float(flow_acc_score)) +
-        (0.10 * float(capacity_risk)) +
-        (0.10 * float(lulc_risk))
+        (0.15 * float(capacity_risk)) +
+        (0.05 * float(lulc_risk))
     )
     
     risk_score = round(min(max(risk_score, 0.0), 1.0), 4)
