@@ -1,9 +1,29 @@
+import base64
 import os
 import streamlit as st
 import plotly.express as px
 import pandas as pd
 from services.audio_guide import generate_twi_audio
 from services.cv_inference import get_photo_path_by_id
+
+
+def render_floating_audio_player(audio_bytes: bytes):
+    """Render a fixed-position audio control for the current risk result."""
+    if not audio_bytes:
+        return
+
+    b64_audio = base64.b64encode(audio_bytes).decode("utf-8")
+    st.markdown(
+        f"""
+        <div style="position: fixed; right: clamp(12px, 2vw, 28px); bottom: clamp(12px, 2vw, 24px); z-index: 9999; width: min(92vw, 360px); background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(148, 163, 184, 0.35); border-radius: 14px; padding: clamp(10px, 1.4vw, 16px); box-shadow: 0 12px 30px rgba(0,0,0,0.28);">
+            <div style="font-size: clamp(0.8rem, 1.4vw, 0.96rem); color: #E2E8F0; margin-bottom: 8px; font-weight: 700;">🔊 Audio Guide</div>
+            <audio controls autoplay style="width: 100%; height: clamp(32px, 3vw, 42px);">
+                <source src="data:audio/mp3;base64,{b64_audio}" type="audio/mpeg">
+            </audio>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def render_risk_results(risk_data: dict, rainfall_data: dict, nearest_points: list, on_contribute_click=None):
@@ -42,17 +62,27 @@ def render_risk_results(risk_data: dict, rainfall_data: dict, nearest_points: li
         unsafe_allow_html=True
     )
 
-    # --- Audio Guide: always replace stale audio with the latest risk result ---
+    # --- Audio Guide: always refresh based on the current station/result ---
     st.sidebar.markdown("### 🔊 Accessibility Settings")
     enable_audio = st.sidebar.toggle("Enable Audio Guide", value=False, key="audio_toggle")
 
+    current_audio_key = (
+        f"risk:{cat}:{score:.4f}:{landmark}:"
+        f"{st.session_state.get('user_lat', 0):.5f}:{st.session_state.get('user_lng', 0):.5f}"
+    )
+
     if enable_audio:
-        st.session_state.pop("risk_audio_bytes", None)
-        st.session_state.pop("risk_audio_key", None)
-        with st.spinner("Generating audio guide..."):
-            audio_fp = generate_twi_audio(cat, score, landmark)
-            st.session_state["risk_audio_bytes"] = audio_fp.getvalue()
-            st.session_state["risk_audio_key"] = f"risk:{cat}:{score:.4f}:{landmark}"
+        audio_bytes = st.session_state.get("risk_audio_bytes")
+        saved_key = st.session_state.get("risk_audio_key")
+
+        if saved_key != current_audio_key or not audio_bytes:
+            with st.spinner("Generating audio guide for this station..."):
+                audio_fp = generate_twi_audio(cat, score, landmark)
+                audio_bytes = audio_fp.getvalue() if audio_fp else None
+            st.session_state["risk_audio_bytes"] = audio_bytes
+            st.session_state["risk_audio_key"] = current_audio_key
+
+        render_floating_audio_player(audio_bytes)
     else:
         st.session_state.pop("risk_audio_bytes", None)
         st.session_state.pop("risk_audio_key", None)

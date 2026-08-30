@@ -5,6 +5,23 @@ def render_sidebar() -> str:
     """
     Renders the FloodWatch navigation sidebar and returns the selected route.
     """
+    st.markdown(
+        """
+        <style>
+        .stRadio [data-baseweb="radio"] > label {
+            font-size: 2rem;
+        }
+        .stRadio [data-baseweb="radio"] > label > span:first-child {
+            font-size: 1.8rem;
+        }
+        div[data-testid="stSidebar"] {
+            font-size: 1.5rem;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+#werty
     with st.sidebar:
         # Hydrological Header Block
         st.markdown(
