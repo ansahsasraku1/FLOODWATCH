@@ -1,10 +1,11 @@
 import streamlit as st
 from streamlit_geolocation import streamlit_geolocation
+from services.asset_paths import get_asset_path
 
 # 1. Page Configuration (Must be first Streamlit command)
 st.set_page_config(
-    page_title="FloodWatch Kisseman",
-    page_icon="🌊",
+    page_title="FLOODWATCH",
+    page_icon=get_asset_path("logo.jpg"),
     layout="wide",
     initial_sidebar_state="expanded"
 )

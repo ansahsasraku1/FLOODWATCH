@@ -12,6 +12,28 @@ except ImportError:
     genai = None
 
 
+def _get_gemini_api_key():
+    for key_name in ("gemini_api_key", "GEMINI_API_KEY", "GOOGLE_API_KEY"):
+        try:
+            api_key = st.secrets.get(key_name)
+        except Exception:
+            api_key = None
+        if api_key:
+            return api_key
+
+    for section_name in ("gemini", "google", "api"):
+        try:
+            section = st.secrets.get(section_name, {})
+        except Exception:
+            section = {}
+        if isinstance(section, dict):
+            for key_name in ("api_key", "gemini_api_key", "GEMINI_API_KEY"):
+                if section.get(key_name):
+                    return section[key_name]
+
+    return os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+
+
 SYSTEM_INSTRUCTION = """You are AMA (Automated Monitoring Assistant), the official AI guide for FloodWatch.
 Your goal is to answer user questions about the app, interpret flood risk calculations, explain spatial/drainage methodology, and assist with app navigation.
 
@@ -75,7 +97,7 @@ Risk is calculated from five key factors:
 @st.cache_resource
 def get_chatbot_client():
     """Initialize Gemini client with caching."""
-    api_key = st.secrets.get("gemini_api_key") or os.getenv("GEMINI_API_KEY")
+    api_key = _get_gemini_api_key()
     
     if not api_key:
         return None
