@@ -13,7 +13,7 @@ def render_chatbot():
     Render the chatbot interface with message history.
     """
     render_image_banner("user_guide.jpg")
-    st.markdown("##AMA - AI Assistant")
+    st.markdown("## AMA - AI Assistant")
     #st.markdown(
         #"Ask me anything about FloodWatch, your flood risk assessment, spatial data interpretation, "
         #"drainage infrastructure, or how to use the app."
