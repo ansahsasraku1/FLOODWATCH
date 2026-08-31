@@ -33,7 +33,11 @@ def render_chatbot():
     # Initialize chat history in session state
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = [
-            {"role": "assistant", "content": "Hello! 👋 I'm **AMA**, your FloodWatch AI guide. I can help you:\n\n Interpret your flood risk score\n\n Explain how slope, elevation (DEM), flow accumulation, and land cover affect your area\n\n Navigate the app and its features\n\n Understand drainage conditions\n\nWhat would you like to know ?"}
+            {"role": "assistant", "content": "Hello! 👋 I'm **AMA**, your FloodWatch AI guide. I can help you:\n\n Interpret your flood risk score"
+            "\n\n Explain how slope, elevation (DEM), flow accumulation, and land cover affect your area"
+            "\n\n Navigate the app and its features "
+            "\n\n Understand drainage conditions \n\nWhat would you like to know ?"
+            }
         ]
     
     # Display chat history
