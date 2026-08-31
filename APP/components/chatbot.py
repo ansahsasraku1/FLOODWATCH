@@ -13,12 +13,12 @@ def render_chatbot():
     Render the chatbot interface with message history.
     """
     render_image_banner("user_guide.jpg")
-    st.markdown("## 🤖 AMA - AI Assistant")
-    st.markdown(
-        "Ask me anything about FloodWatch, your flood risk assessment, spatial data interpretation, "
-        "drainage infrastructure, or how to use the app."
-    )
-    
+    st.markdown("##AMA - AI Assistant")
+    #st.markdown(
+        #"Ask me anything about FloodWatch, your flood risk assessment, spatial data interpretation, "
+        #"drainage infrastructure, or how to use the app."
+    #)
+    #🤖
     # Check if API key is available
     if not get_chatbot_client():
         st.warning(
@@ -33,7 +33,7 @@ def render_chatbot():
     # Initialize chat history in session state
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = [
-            {"role": "assistant", "content": "Hello! 👋 I'm **AMA** (Automated Monitoring Assistant), your FloodWatch AI guide. I can help you:\n\n✅ Interpret your flood risk score\n✅ Explain how slope, elevation (DEM), flow accumulation, and land cover affect your area\n✅ Navigate the app and its features\n✅ Understand drainage conditions\n\nWhat would you like to know?"}
+            {"role": "assistant", "content": "Hello! 👋 I'm **AMA**, your FloodWatch AI guide. I can help you:\n\n Interpret your flood risk score\n\n Explain how slope, elevation (DEM), flow accumulation, and land cover affect your area\n\n Navigate the app and its features\n\n Understand drainage conditions\n\nWhat would you like to know ?"}
         ]
     
     # Display chat history
@@ -80,6 +80,6 @@ def render_chatbot():
     # Clear history button in sidebar
     if st.session_state.chat_history:
         st.divider()
-        if st.button("🗑️ Clear Chat History", use_container_width=True):
+        if st.button("Clear Chat History", use_container_width=True):
             st.session_state.chat_history = []
             st.rerun()

@@ -346,7 +346,7 @@ def render_interactive_map(survey_points: list[dict], center_lat: float = 5.6493
                 closest = nearest[0]
                 st.markdown("---")
                 st.subheader("📍 Nearest Gutter Point")
-                st.info(f"The nearest surveyedgutter is close to **{closest.get('Nearest_Landmark', 'Drainage Point')}** and it is **{closest.get('distance_m', 0)}m** away.")
+                st.info(f"The nearest surveyed drainage is close to **{closest.get('Nearest_Landmark', 'Drainage Point')}** and it is **{closest.get('distance_m', 0)}m** away.")
 
                 contact_landmark = closest.get("Nearest_Landmark", "Drainage Point")
                 contact_gutter = closest.get("Gutter_Type", "Unknown Channel")

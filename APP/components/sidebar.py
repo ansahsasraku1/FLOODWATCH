@@ -21,7 +21,7 @@ def render_sidebar() -> str:
         """,
         unsafe_allow_html=True,
     )
-#werty
+#werty 
     with st.sidebar:
         # Hydrological Header Block
         st.markdown(
