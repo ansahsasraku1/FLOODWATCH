@@ -491,7 +491,9 @@ def render_update_gutter_point(nearest_point: dict, user_lat: float, user_lng: f
                 choke_code=cv_result.get("choke_code", 0),
                 drain_type=gutter_type,
                 lulc_class="Unknown",
-                landmark=landmark_name or nearest_point.get("Nearest_Landmark", "")
+                landmark=landmark_name or nearest_point.get("Nearest_Landmark", ""),
+                source_survey_id=str(nearest_point.get("Survey_ID", "")),
+                block_score=blockage_level / 3.0
             )
             
             if success:

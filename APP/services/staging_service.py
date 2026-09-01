@@ -1,12 +1,12 @@
 import os
 import csv
-import shutil
 from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
+from PIL import Image
 
-from services.gis_service import get_lulc_at_point, get_terrain_at_point
+from services.gis_service import get_terrain_at_point
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 STAGING_CSV = os.path.join(BASE_DIR, "APP", "uploads", "pending_submissions.csv")
@@ -18,12 +18,14 @@ HEADERS = [
     "Survey_ID", "Timestamp", "Photo_ID", "Latitude", "Longitude",
     "AI_Suggested_Blockage", "Choke_Code",
     "Drain_Type", "LULC_Class", "DEM_Value", "Slope", "Slope_Score",
-    "FlowAccumulation", "FlowAcc_Score", "Landmark_Notes", "Status"
+    "FlowAccumulation", "FlowAcc_Score", "Landmark_Notes", "Source_Survey_ID",
+    "Submitted_BlockScore", "Status"
 ]
 
-def save_pending_submission(photo_filename: str, lat: float, lng: float, 
+def save_pending_submission(photo_filename: str, lat: float, lng: float,
                            ai_suggested: str, choke_code: int,
-                           drain_type: str, lulc_class: str, landmark: str) -> bool:
+                           drain_type: str, lulc_class: str, landmark: str,
+                           source_survey_id: str = "", block_score: float = None) -> bool:
     try:
         os.makedirs(os.path.dirname(STAGING_CSV), exist_ok=True)
         survey_id = f"SRV_{int(datetime.now().timestamp())}"
@@ -38,7 +40,9 @@ def save_pending_submission(photo_filename: str, lat: float, lng: float,
             "Slope_Score": raster_value("Slope_Score"),
             "FlowAccumulation": raster_value("FlowAccumulation"),
             "FlowAcc_Score": raster_value("FlowAcc_Score"),
-            "Landmark_Notes": landmark, "Status": "Pending Approval"
+            "Landmark_Notes": landmark, "Source_Survey_ID": source_survey_id,
+            "Submitted_BlockScore": "" if block_score is None else block_score,
+            "Status": "Pending Approval"
         }
         existing = []
         if os.path.exists(STAGING_CSV):
@@ -139,49 +143,51 @@ def _nearest_terrain(lat: float, lng: float, data: pd.DataFrame) -> dict[str, fl
 
 
 def _risk_level(score: float) -> str:
-    if score <= 0.25:
-        return "Low"
     if score <= 0.50:
+        return "Low"
+    if score <= 0.67:
         return "Moderately Low"
-    if score <= 0.75:
+    if score <= 0.83:
         return "Moderately High"
     return "High"
 
 
-def approve_submission(submission: dict) -> None:
-    """Move an approved image and append one formula-compliant app-data row."""
-    data = pd.read_csv(APP_DATA_CSV, dtype=str) if os.path.exists(APP_DATA_CSV) else pd.DataFrame()
-    lat = _number(submission.get("Latitude"))
-    lng = _number(submission.get("Longitude"))
-    gutter_type = submission.get("Drain_Type") or "Small roadside drain"
-    width_m, depth_m = _estimate_dimensions(gutter_type, data)
-    cross_section = width_m * depth_m
-    choke_code = int(_number(submission.get("Choke_Code"), 2))
-    block_score = max(0.0, min(choke_code / 4.0, 1.0))
-    raster_terrain = get_terrain_at_point(lat, lng)
-    fallback_terrain = _nearest_terrain(lat, lng, data)
-    terrain = {
-        key: _number(raster_terrain.get(key), fallback_terrain[key])
-        for key in ("DEM_Value", "Slope_Score", "FlowAcc_Score")
-    }
+def _compress_and_publish_photo(source: Path, photo_name: str) -> str:
+    destination_dir = Path(PHOTOS_DIR)
+    destination_dir.mkdir(parents=True, exist_ok=True)
+    destination_name = f"{Path(photo_name).stem}.jpg"
+    destination = destination_dir / destination_name
+    with Image.open(source) as image:
+        compressed = image.convert("RGB")
+        compressed.thumbnail((1080, 1080))
+        compressed.save(destination, format="JPEG", optimize=True, quality=70)
+    source.unlink()
+    return destination_name
 
-    lulc = get_lulc_at_point(lat, lng)
-    if str(lulc).upper() == "NULL":
-        lulc_risk = 0.5
-    else:
-        lulc_risk = 1.0 if str(lulc).lower() == "built-up" else 0.0
+
+def approve_submission(submission: dict) -> None:
+    """Publish an approved update while preserving the original point's static data."""
+    data = pd.read_csv(APP_DATA_CSV, dtype=str) if os.path.exists(APP_DATA_CSV) else pd.DataFrame()
+    source_id = str(submission.get("Source_Survey_ID", "")).strip()
+    source_row = {}
+    if source_id and not data.empty and "Survey_ID" in data.columns:
+        matches = data[data["Survey_ID"].astype(str) == source_id]
+        if not matches.empty:
+            source_row = matches.iloc[0].to_dict()
+
+    lat = _number(source_row.get("Latitude"), _number(submission.get("Latitude")))
+    lng = _number(source_row.get("Longitude"), _number(submission.get("Longitude")))
+    gutter_type = source_row.get("Gutter_Type") or submission.get("Drain_Type") or "Small roadside drain"
+    width_m = _number(source_row.get("Width_m"))
+    depth_m = _number(source_row.get("Depth_m"))
+    cross_section = _number(source_row.get("CrossSec_m2"), width_m * depth_m)
+    block_score = _number(submission.get("Submitted_BlockScore"), _number(source_row.get("BlockScore"), 0.0))
+    terrain = {key: _number(source_row.get(key)) for key in ("DEM_Value", "Slope_Score", "FlowAcc_Score")}
+    lulc_risk = _number(source_row.get("LULC_Risk"))
+    capacity_risk = _number(source_row.get("Capacity_Risk"))
 
     rainfall_values = pd.to_numeric(data.get("Rainfall_Score", pd.Series(dtype=float)), errors="coerce")
     rainfall_score = _number(rainfall_values.median(), 0.301)
-    capacities = pd.to_numeric(data.get("CrossSec_m2", pd.Series(dtype=float)), errors="coerce")
-    min_capacity = _number(capacities.min(), cross_section)
-    max_capacity = _number(capacities.max(), cross_section)
-    if max_capacity > min_capacity:
-        capacity_index = (cross_section - min_capacity) / (max_capacity - min_capacity)
-        capacity_risk = 1.0 - max(0.0, min(capacity_index, 1.0))
-    else:
-        capacity_risk = 0.5
-
     risk_score = round(max(0.0, min(
         (0.30 * block_score) + (0.20 * rainfall_score) +
         (0.15 * terrain["Slope_Score"]) + (0.15 * terrain["FlowAcc_Score"]) +
@@ -190,25 +196,23 @@ def approve_submission(submission: dict) -> None:
 
     photo_name = Path(str(submission.get("Photo_ID", ""))).name
     source = Path(UPLOADS_DIR) / photo_name
-    destination_dir = Path(PHOTOS_DIR)
-    destination_dir.mkdir(parents=True, exist_ok=True)
-    destination = destination_dir / photo_name
-    if source.exists():
-        shutil.move(str(source), str(destination))
+    if not source.exists():
+        raise FileNotFoundError(f"Uploaded photo not found: {source}")
+    photo_name = _compress_and_publish_photo(source, photo_name)
 
     row = {
         "Survey_ID": submission.get("Survey_ID", f"SRV_{int(datetime.now().timestamp())}"),
-        "Nearest_Landmark": submission.get("Landmark_Notes", "Unknown Landmark"),
+        "Nearest_Landmark": submission.get("Landmark_Notes") or source_row.get("Nearest_Landmark", "Unknown Landmark"),
         "Gutter_Type": gutter_type,
         "BlockScore": block_score,
-        "Width_m": round(width_m, 3),
-        "Depth_m": round(depth_m, 3),
-        "CrossSec_m2": round(cross_section, 3),
-        "DEM_Value": terrain["DEM_Value"],
-        "Slope_Score": terrain["Slope_Score"],
-        "FlowAcc_Score": terrain["FlowAcc_Score"],
-        "LULC_Risk": lulc_risk,
-        "Capacity_Risk": round(capacity_risk, 6),
+        "Width_m": source_row.get("Width_m", round(width_m, 3)),
+        "Depth_m": source_row.get("Depth_m", round(depth_m, 3)),
+        "CrossSec_m2": source_row.get("CrossSec_m2", round(cross_section, 3)),
+        "DEM_Value": source_row.get("DEM_Value", terrain["DEM_Value"]),
+        "Slope_Score": source_row.get("Slope_Score", terrain["Slope_Score"]),
+        "FlowAcc_Score": source_row.get("FlowAcc_Score", terrain["FlowAcc_Score"]),
+        "LULC_Risk": source_row.get("LULC_Risk", lulc_risk),
+        "Capacity_Risk": source_row.get("Capacity_Risk", capacity_risk),
         "Rainfall_Score": rainfall_score,
         "Risk_Score": risk_score,
         "Risk_Level": _risk_level(risk_score),

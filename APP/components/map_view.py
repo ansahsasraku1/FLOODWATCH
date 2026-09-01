@@ -1,14 +1,18 @@
 import os
+import json
 import tempfile
 import time
 from io import BytesIO
+from pathlib import Path
 
 import numpy as np
 import rasterio
 import streamlit as st
 import folium
 from PIL import Image
+from branca.element import MacroElement, Template
 from streamlit_folium import st_folium
+from streamlit_geolocation import streamlit_geolocation
 from services.cv_inference import get_photo_path_by_id
 from services.gis_service import get_lulc_at_point, get_terrain_at_point
 from services.risk_engine import calculate_flood_risk
@@ -17,6 +21,106 @@ from components.banners import render_image_banner
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DATA_DIR = os.path.join(BASE_DIR, "DATA")
+
+# Default map opacity values. These can still be edited here, but the user can also
+# adjust them live from the map frame with the sliders below.
+MAP_LAYER_OPACITY = {
+    "lulc": 0.75,
+    "slope": 0.55,
+    "flow": 0.50,
+    "dem": 0.45,
+}
+
+# The visible PNG layers are wider than the TIF bounds in pixel ratio, so we maintain a
+# stable study-area center and expand the bounds to match the actual image aspect ratio.
+KISSEMAN_BOUNDS = [
+    [5.634539545704818, -0.22402216931530344],
+    [5.654727358758636, -0.20518021046507307],
+]
+
+
+class MapOpacityControl(MacroElement):
+    def __init__(self, layers):
+        super().__init__()
+        self._name = "MapOpacityControl"
+        self.layers = layers
+        self._template = Template("""
+        {% macro script(this, kwargs) %}
+        var opacityControl = L.control({position: "topright"});
+        opacityControl.onAdd = function() {
+            var control = L.DomUtil.create("div", "leaflet-control fw-opacity-control");
+            control.innerHTML = '<button type="button" class="fw-opacity-toggle" aria-expanded="false">Layer opacity</button>' +
+                '<div class="fw-opacity-panel">{{ this.rows_html }}</div>';
+            L.DomEvent.disableClickPropagation(control);
+            L.DomEvent.on(control.querySelector(".fw-opacity-toggle"), "click", function() {
+                var open = control.classList.toggle("is-open");
+                this.setAttribute("aria-expanded", String(open));
+            });
+            {% for layer in this.layers %}
+            (function(input) {
+                var layer = {{ layer.variable }};
+                L.DomEvent.disableClickPropagation(input);
+                input.addEventListener("input", function() {
+                    var value = Number(input.value);
+                    layer.setOpacity(value);
+                    input.nextElementSibling.value = value.toFixed(2);
+                });
+            })(control.querySelector('[data-mode="{{ layer.mode }}"]'));
+            {% endfor %}
+            return control;
+        };
+        opacityControl.addTo({{ this._parent.get_name() }});
+        {% endmacro %}
+        """)
+
+
+def get_map_opacity_controls() -> dict[str, float]:
+    """Return the current opacity settings for the visible map overlays."""
+    if "map_layer_opacity" not in st.session_state:
+        st.session_state.map_layer_opacity = MAP_LAYER_OPACITY.copy()
+    return st.session_state.map_layer_opacity
+
+
+def build_map_layer_specs(data_dir: str | os.PathLike[str] | None = None, opacity_overrides: dict[str, float] | None = None) -> dict[str, list[dict]]:
+    """Build visible/hidden overlay specs.
+
+    Visible layers prefer PNG files in DATA/png_data so they appear in the Folium layer tab.
+    Hidden layers keep the original TIFF rasters in-memory for querying while setting opacity to 0
+    and disabling layer control so they never show in the tab.
+    """
+    data_path = Path(data_dir) if data_dir is not None else Path(DATA_DIR)
+    png_dir = data_path / "png_data"
+    opacity_map = MAP_LAYER_OPACITY.copy()
+    if opacity_overrides:
+        opacity_map.update(opacity_overrides)
+
+    visible_layers = [
+        {"name": "Land Use / Land Cover", "mode": "lulc", "path": png_dir / "lulc.png", "opacity": opacity_map["lulc"]},
+        {"name": "Slope Map", "mode": "slope", "path": png_dir / "slope.png", "opacity": opacity_map["slope"]},
+        {"name": "Flow Accumulation", "mode": "flow", "path": png_dir / "flowacc.png", "opacity": opacity_map["flow"]},
+        {"name": "Elevation / DEM", "mode": "dem", "path": png_dir / "elevation.png", "opacity": opacity_map["dem"]},
+    ]
+
+    hidden_layers = [
+        {"name": "Land Use / Land Cover (data)", "mode": "lulc", "path": data_path / "Kisseman_lulc.tif", "opacity": 0.0, "control": False},
+        {"name": "Slope Map (data)", "mode": "slope", "path": data_path / "Kisseman_slope.tif", "opacity": 0.0, "control": False},
+        {"name": "Flow Accumulation (data)", "mode": "flow", "path": data_path / "Kisseman_facc.tif", "opacity": 0.0, "control": False},
+        {"name": "Elevation / DEM (data)", "mode": "dem", "path": data_path / "Kisseman_dem.tif", "opacity": 0.0, "control": False},
+    ]
+
+    visible = []
+    for layer in visible_layers:
+        path = Path(layer["path"])
+        if path.exists():
+            visible.append({**layer, "control": True, "show": False})
+
+    hidden = []
+    for layer in hidden_layers:
+        path = Path(layer["path"])
+        if path.exists():
+            hidden.append({**layer, "control": False, "show": False})
+
+    return {"visible": visible, "hidden": hidden}
 
 
 def safe_float(value, default=0.0):
@@ -39,12 +143,35 @@ def render_interactive_map(survey_points: list[dict], center_lat: float = 5.6493
     c_lat = float(center_lat) if center_lat else 5.6493
     c_lng = float(center_lng) if center_lng else -0.2069
 
+    st.markdown("##### 📍 Use my current location")
+    location = streamlit_geolocation()
+    if location and location.get("latitude") is not None and location.get("longitude") is not None:
+        c_lat = float(location["latitude"])
+        c_lng = float(location["longitude"])
+        st.session_state.user_lat = c_lat
+        st.session_state.user_lng = c_lng
+        st.success(f"Location captured: {c_lat:.5f}, {c_lng:.5f}")
+    else:
+        st.info("Allow location access to recenter the flood map on your position.")
+
+    opacity_controls = get_map_opacity_controls()
+
     t0 = time.time()
     m = folium.Map(location=[c_lat, c_lng], zoom_start=16, tiles="OpenStreetMap")
     #st.write(f"DEBUG: Map object created in {time.time()-t0:.2f}s")
 
     def colorize_raster(array: np.ndarray, mode: str, colormap: dict | None = None):
-        arr = np.asarray(array, dtype=np.float32)
+        arr = np.asarray(array)
+
+        if arr.ndim == 3 and arr.shape[0] in (3, 4):
+            rgb = np.moveaxis(arr, 0, -1)
+            rgb = np.clip(rgb, 0, 255).astype(np.uint8)
+            if rgb.shape[-1] == 3:
+                alpha = np.full((rgb.shape[0], rgb.shape[1], 1), 255, dtype=np.uint8)
+                return np.concatenate([rgb, alpha], axis=2)
+            return rgb
+
+        arr = arr.astype(np.float32)
         mask = np.isfinite(arr)
         rgb = np.zeros((arr.shape[0], arr.shape[1], 3), dtype=np.uint8)
 
@@ -113,16 +240,71 @@ def render_interactive_map(survey_points: list[dict], center_lat: float = 5.6493
         rgba = np.dstack([rgb, alpha])
         return rgba
 
-    def add_raster_layer(raster_path: str, name: str, mode: str, opacity: float = 0.55):
+    def resolve_overlay_bounds(raster_path: str | os.PathLike[str]):
+        path = Path(raster_path)
+        reference_bounds = KISSEMAN_BOUNDS
+        if path.suffix.lower() == ".png":
+            mapping = {
+                "lulc.png": "Kisseman_lulc.tif",
+                "slope.png": "Kisseman_slope.tif",
+                "flowacc.png": "Kisseman_facc.tif",
+                "elevation.png": "Kisseman_dem.tif",
+            }
+            reference_name = mapping.get(path.name)
+            if reference_name:
+                reference_path = Path(DATA_DIR) / reference_name
+                if reference_path.exists():
+                    with rasterio.open(reference_path) as src:
+                        ref_south, ref_west, ref_north, ref_east = src.bounds.bottom, src.bounds.left, src.bounds.top, src.bounds.right
+                        reference_bounds = [[ref_south, ref_west], [ref_north, ref_east]]
+
+        south, west = reference_bounds[0]
+        north, east = reference_bounds[1]
+
+        try:
+            with Image.open(raster_path) as img:
+                img_w, img_h = img.size
+        except Exception:
+            img_w, img_h = 1, 1
+
+        current_ratio = (east - west) / (north - south)
+        image_ratio = img_w / img_h if img_h else 1.0
+        if image_ratio and abs(image_ratio - current_ratio) > 0.01:
+            center_lat = (south + north) / 2
+            center_lng = (west + east) / 2
+            scale = image_ratio / current_ratio if current_ratio else 1.0
+            if scale >= 1:
+                new_west = center_lng - (east - west) * scale / 2
+                new_east = center_lng + (east - west) * scale / 2
+            else:
+                new_south = center_lat - (north - south) / (2 * scale)
+                new_north = center_lat + (north - south) / (2 * scale)
+                return [[new_south, west], [new_north, east]]
+            return [[south, new_west], [north, new_east]]
+
+        return [[south, west], [north, east]]
+
+    def add_raster_layer(raster_path: str | os.PathLike[str], name: str, mode: str, opacity: float = 0.55, control: bool = True):
         with rasterio.open(raster_path) as src:
-            array = src.read(1, masked=True)
-            west, south, east, north = src.bounds
+            array = src.read(masked=True)
+            bounds = resolve_overlay_bounds(raster_path)
+            south, west = bounds[0]
+            north, east = bounds[1]
             try:
                 colormap = src.colormap(1)
             except ValueError:
                 colormap = None
-            rgba = colorize_raster(array, mode, colormap=colormap if colormap else None)
-            image = Image.fromarray(rgba, mode="RGBA")
+
+            if array.shape[0] in (3, 4):
+                rgb = np.moveaxis(array, 0, -1)
+                rgba = np.clip(rgb, 0, 255).astype(np.uint8)
+                if rgba.shape[-1] == 3:
+                    alpha = np.full((rgba.shape[0], rgba.shape[1], 1), 255, dtype=np.uint8)
+                    rgba = np.concatenate([rgba, alpha], axis=2)
+                image = Image.fromarray(rgba, mode="RGBA")
+            else:
+                rgba = colorize_raster(array[0], mode, colormap=colormap if colormap else None)
+                image = Image.fromarray(rgba, mode="RGBA")
             buffer = BytesIO()
             image.save(buffer, format="PNG")
 
@@ -136,17 +318,46 @@ def render_interactive_map(survey_points: list[dict], center_lat: float = 5.6493
             opacity=opacity,
             name=name,
             overlay=True,
-            control=True,
+            control=control,
             show=False,
         )
         overlay.add_to(m)
-        return overlay
+        return [[south, west], [north, east]], overlay
 
-    # Raster layers that can be toggled on/off
-    add_raster_layer(os.path.join(DATA_DIR, "Kisseman_lulc.tif"), "Land Use / Land Cover", "lulc", opacity=0.65)
-    add_raster_layer(os.path.join(DATA_DIR, "Kisseman_slope.tif"), "Slope Map", "slope", opacity=0.55)
-    add_raster_layer(os.path.join(DATA_DIR, "Kisseman_facc.tif"), "Flow Accumulation", "flow", opacity=0.5)
-    add_raster_layer(os.path.join(DATA_DIR, "Kisseman_dem.tif"), "Elevation / DEM", "dem", opacity=0.45)
+    visible_bounds = []
+    layer_specs = build_map_layer_specs(DATA_DIR, opacity_overrides=opacity_controls)
+    visible_overlay_controls = []
+    for layer in layer_specs["visible"]:
+        bounds, overlay = add_raster_layer(
+            layer["path"],
+            layer["name"],
+            layer["mode"],
+            opacity=float(opacity_controls.get(layer["mode"], layer["opacity"])),
+            control=layer["control"],
+        )
+        visible_bounds.append(bounds)
+        visible_overlay_controls.append({
+            "mode": layer["mode"],
+            "label": layer["name"],
+            "opacity": float(opacity_controls.get(layer["mode"], layer["opacity"])),
+            "variable": overlay.get_name(),
+        })
+
+    for layer in layer_specs["hidden"]:
+        add_raster_layer(
+            layer["path"],
+            layer["name"],
+            layer["mode"],
+            opacity=layer["opacity"],
+            control=layer["control"],
+        )
+
+    if visible_bounds:
+        south = min(bounds[0][0] for bounds in visible_bounds)
+        west = min(bounds[0][1] for bounds in visible_bounds)
+        north = max(bounds[1][0] for bounds in visible_bounds)
+        east = max(bounds[1][1] for bounds in visible_bounds)
+        m.fit_bounds([[south, west], [north, east]], padding=(0.02, 0.02))
 
     # User location indicator: orange dot + 50m transparent buffer + pulsing ring
     folium.Circle(
@@ -266,8 +477,58 @@ def render_interactive_map(survey_points: list[dict], center_lat: float = 5.6493
         title="Layers"
     ).add_to(m)
 
-    # --- DEBUG: this is the line we need to see print or not ---
-    #st.write("DEBUG: about to call st_folium...")
+    opacity_rows = "".join(
+        f'<label class="fw-opacity-row">'
+        f'<span>{json.dumps(item["label"])[1:-1]}</span>'
+        f'<input type="range" min="0" max="1" step="0.05" value="{item["opacity"]:.2f}" '
+        f'data-mode="{item["mode"]}">'
+        f'<output>{item["opacity"]:.2f}</output>'
+        f'</label>'
+        for item in visible_overlay_controls
+    )
+    opacity_control = MapOpacityControl(visible_overlay_controls)
+    opacity_control.rows_html = opacity_rows
+    m.add_child(opacity_control)
+
+    opacity_control_style = """\n<style>
+.fw-opacity-control {
+    background: white;
+    border: 2px solid rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.35);
+    color: #263238;
+    min-width: 210px;
+    padding: 0;
+}
+.fw-opacity-toggle {
+    background: white;
+    border: 0;
+    color: #263238;
+    cursor: pointer;
+    font-weight: 700;
+    padding: 8px 10px;
+    text-align: left;
+    width: 100%;
+}
+.fw-opacity-panel {
+    display: none;
+    padding: 2px 10px 8px;
+}
+.fw-opacity-control.is-open .fw-opacity-panel { display: block; }
+.fw-opacity-row {
+    align-items: center;
+    display: grid;
+    gap: 5px;
+    grid-template-columns: minmax(0, 1fr) 78px 34px;
+    margin-top: 7px;
+}
+.fw-opacity-row span { font-size: 11px; line-height: 1.15; }
+.fw-opacity-row input { margin: 0; width: 78px; }
+.fw-opacity-row output { font-size: 10px; text-align: right; }
+</style>
+"""
+    m.get_root().header.add_child(folium.Element(opacity_control_style))
+
     t2 = time.time()
     map_data = st_folium(m, use_container_width=True, height=355, key="interactive_kisseman_map")
     #st.write(f"DEBUG: st_folium returned in {time.time()-t2:.2f}s")
