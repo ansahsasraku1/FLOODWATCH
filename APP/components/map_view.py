@@ -137,6 +137,7 @@ def render_interactive_map(survey_points: list[dict], center_lat: float = 5.6493
             name=name,
             overlay=True,
             control=True,
+            show=False,
         )
         overlay.add_to(m)
         return overlay

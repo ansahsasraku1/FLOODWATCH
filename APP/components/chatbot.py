@@ -72,7 +72,12 @@ def render_chatbot():
 - Blockage Percentage: {current_pred.get('blockage_percentage', 'N/A')}%
 """
             
-            response = get_chatbot_response(user_input, system_context)
+            recent_history = st.session_state.chat_history[-6:]
+            response = get_chatbot_response(
+                user_input,
+                system_context,
+                conversation_history=recent_history,
+            )
         
         if response:
             st.session_state.chat_history.append({"role": "assistant", "content": response})

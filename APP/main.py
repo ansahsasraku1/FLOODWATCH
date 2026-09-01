@@ -130,7 +130,14 @@ else:
             st.session_state.selected_route = "Report Issue"
             st.rerun()
 
-        render_risk_results(risk_res, rainfall, nearby, on_contribute_click=switch_to_contribute)     
+        render_risk_results(
+            risk_res, 
+            rainfall, 
+            nearby, 
+            user_lat=st.session_state.user_lat,
+            user_lng=st.session_state.user_lng,
+            on_contribute_click=switch_to_contribute
+        )     
     # ------------------------------------------------------------------
     # ROUTE 2: INTERACTIVE MAP
     # ------------------------------------------------------------------
@@ -144,6 +151,14 @@ else:
             center_lat=st.session_state.user_lat, 
             center_lng=st.session_state.user_lng
         )
+
+    # ------------------------------------------------------------------
+    # ROUTE 3: RAINFALL SIMULATOR ROOM
+    # ------------------------------------------------------------------
+    elif active_route == "Simulator Room":
+        from components.simulator_room import render_simulator_room
+
+        render_simulator_room()
 
     # ------------------------------------------------------------------
     # ROUTE 5: USER GUIDE

@@ -49,6 +49,7 @@ def render_sidebar() -> str:
         nav_options = {
             "Check My Risk": "🌧️ Check My Flood Risk",
             "Interactive Map": "🗺️ Flood Map",
+            "Simulator Room": "🌊 Rainfall Simulator",
             #"Flood History": "📜 Flood History",
             "Community Gallery": "🖼️ Community Gallery",
             "User Guide": "📖 User Guide",

@@ -1,0 +1,214 @@
+FLOODWATCH APP NAVIGATION REFERENCE
+====================================
+
+Purpose
+-------
+This reference describes the navigation, screens, controls, workflows, and current behavior of the FloodWatch application. Use it when answering questions about how to move through the app or how a feature works. Describe current behavior only. Do not claim that a feature exists unless it is listed as operational below.
+
+Application identity
+--------------------
+FloodWatch is a Streamlit web application for localized flood-risk awareness in Kisseman Community, Okaikwei North Municipal, Greater Accra Region, Ghana. It combines rainfall forecasts, surveyed drainage points, drainage blockage observations, terrain and GIS data, and a risk engine.
+
+The application uses browser location permission where a screen provides a current-location control. If permission is unavailable, the user can use the available coordinate inputs or the app's default Kisseman coordinates.
+
+Main navigation
+---------------
+The navigation menu is in the left sidebar. The current menu options are:
+
+1. Check My Flood Risk
+2. Flood Map
+3. Rainfall Simulator
+4. Community Gallery
+5. User Guide
+6. FloodWatch Assistant
+7. Developer Hub
+8. Report an Issue
+
+A user changes screens by selecting the corresponding item in the sidebar. The active screen is remembered during the current Streamlit session.
+
+1. Check My Flood Risk
+----------------------
+Purpose:
+Provides a current localized flood-risk assessment for the selected user location.
+
+How to use it:
+- Open Check My Flood Risk from the sidebar.
+- Allow browser location access when prompted, or use the latitude and longitude inputs.
+- FloodWatch retrieves the available seven-day rainfall forecast for the selected coordinates.
+- FloodWatch finds nearby surveyed drainage points, normally searching within 1 km.
+- The nearest point supplies local drainage and GIS characteristics for the primary assessment.
+- The risk engine calculates a score and assigns one of four categories: Low, Moderately Low, Moderately High, or High.
+
+What is displayed:
+- Primary flood-risk card with the calculated category, score, and explanatory label.
+- Connection to the nearest surveyed drainage point.
+- Field photograph when one is available.
+- Actual drainage blockage level from the point's BlockScore. This is separate from flood risk.
+- Optional update form for the nearest drainage point when the user is within 20 metres.
+- Seven-day rainfall forecast chart. The chart displays relative rainfall chance percentages; the total expected rainfall is also shown in millimetres.
+- Other nearby surveyed drainage points within the 1 km search result.
+
+Important distinction:
+- Flood Risk is calculated by the current risk engine and controls the risk category and card color.
+- Drain Blockage Level comes from the surveyed point's BlockScore and describes the drainage condition. It must not be called the flood-risk category.
+
+2. Flood Map
+------------
+Purpose:
+Shows surveyed drainage points and optional GIS raster layers on an OpenStreetMap basemap.
+
+Current behavior:
+- The drainage-point layer is visible by default.
+- Drainage points are shown as colored markers using their stored map risk category.
+- The layer panel is in the upper-right of the map.
+- The user can turn the drainage-point layer off or on.
+- The user can turn each GIS layer off or on independently.
+- GIS layers are hidden by default and include:
+  - Land Use / Land Cover
+  - Slope Map
+  - Flow Accumulation
+  - Elevation / DEM
+- Clicking a surveyed drainage point can show its associated photo and information when available.
+- The map also provides spatial analysis for a tapped map location when the map interaction returns a clicked coordinate. This can show terrain context and a point-specific prediction.
+
+Do not describe the Flood Map as the rainfall simulator. It is primarily for viewing drainage observations and GIS layers.
+
+3. Rainfall Simulator
+----------------------
+Purpose:
+Lets a user test hypothetical rainfall amounts and see how calculated flood risk changes around a selected map location.
+
+How to use it:
+- Open Rainfall Simulator from the sidebar.
+- Allow current-location access to use the user's position as the initial simulation center.
+- The user can tap any location on the map to create a secondary simulation location.
+- A placemark and 500 metre radius appear around the selected center.
+- All surveyed drainage points within 500 metres are evaluated and displayed by default.
+- Use the rainfall slider from 0 mm to 100 mm.
+- Moving the slider recalculates each displayed point through the risk engine.
+- Marker colors, risk categories, summary counts, and detailed point results change with the simulated rainfall.
+
+Simulator risk categories:
+- Low
+- Moderately Low
+- Moderately High
+- High
+
+The simulator's sidebar filter can be used to hide or show selected categories, but all four categories are selected by default. The 500 metre radius is the geographic filter; points outside it are not included in the simulation results.
+
+The simulator uses the selected map center, not only the user's original location. Tapping another location moves the simulation center and reruns the analysis.
+
+4. Community Gallery
+--------------------
+Purpose:
+Displays community and field drainage photographs associated with surveyed points.
+
+How to use it:
+- Open Community Gallery from the sidebar.
+- Browse the available drainage photographs and associated point information.
+- The gallery is for viewing community and field observations. It is not the administrator approval queue.
+
+5. User Guide
+-------------
+Purpose:
+Provides instructions and explanations for using FloodWatch.
+
+Use this screen when a user asks for general help understanding the app, its purpose, or its workflows.
+
+6. FloodWatch Assistant
+-----------------------
+Purpose:
+Opens AMA, the FloodWatch AI assistant.
+
+AMA can help with:
+- App navigation
+- Flood-risk score interpretation
+- Drainage blockage and drainage conditions
+- Rainfall and the seven-day forecast
+- GIS concepts such as DEM, slope, flow accumulation, and LULC
+- The rainfall simulator
+- Citizen drainage updates
+- General flood awareness and environmental topics
+
+AMA must distinguish between the user's location and the nearest surveyed drainage point. AMA must not invent survey points, rainfall values, flood history, or model accuracy.
+
+7. Developer Hub
+----------------
+Purpose:
+Contains developer/project information and the administrator moderation area.
+
+The screen has two tabs:
+- Developer Profile: project and developer information.
+- Admin Moderation Queue: administrator sign-in and pending citizen submissions.
+
+Administrator workflow:
+- An administrator signs in using the configured administrator account.
+- Pending citizen submissions appear in the moderation queue.
+- The administrator can inspect the submitted image and metadata.
+- The administrator can approve or reject a submission.
+- Only approved information should be treated as verified community data.
+
+This screen is not intended for ordinary users to change risk scores directly.
+
+8. Report an Issue
+------------------
+Purpose:
+Allows a user to submit a new drainage observation or report a drainage issue.
+
+How to use it:
+- Open Report an Issue from the sidebar.
+- Follow the camera or upload workflow.
+- Provide the requested location and drainage information.
+- Submit the photograph and details for review.
+- The submission enters the administrator review workflow rather than immediately changing official data.
+
+Updating an existing drainage point
+-----------------------------------
+The update form is available from Check My Flood Risk for the nearest surveyed drainage point when the user is within 20 metres of it.
+
+The form is collapsed by default. Click the update-form expander to open it.
+
+The user can provide:
+- A new photograph of the drainage point.
+- A blockage level: Clear, Minor, Moderate, or Severe.
+- Gutter type: Open concrete drain, Earthen / soil drain, or Covered / underground drain.
+- Landmark name.
+- Optional name and phone number.
+- Optional comments.
+
+Submission rules and feedback:
+- A photograph is required.
+- Browser or selected coordinates must place the user within 20 metres of the point.
+- Computer vision checks whether the image appears to show drainage infrastructure.
+- Low-confidence or non-drain images are rejected with an on-screen message.
+- A successful submission is stored as Pending Approval for administrator review.
+- On success, the form clears and collapses, a success message is shown, and an approval beep may play when browser audio permits it.
+- A rejected photo is not accepted as a valid update and the user is asked to try again with a clearer drainage photograph.
+
+Risk-engine interpretation
+--------------------------
+The current application risk engine combines:
+- BlockScore
+- Rainfall amount
+- Slope score
+- Flow accumulation score
+- Capacity risk
+- LULC risk
+
+For the current Check My Flood Risk calculation, the seven-day rainfall total is passed with is_daily_rainfall=False. The engine returns the category and score used by the primary card. Nearby point cards recalculate their own category using their own stored point parameters and the same rainfall input; they do not rely on a stale stored Risk_Level for the current display.
+
+The current category names are exactly:
+- Low
+- Moderately Low
+- Moderately High
+- High
+
+Do not confuse these with drainage blockage labels:
+- Clear / Low
+- Minor
+- Moderate
+- Severe
+
+Safety and limitations
+----------------------
+FloodWatch is a localized decision-support and flood-risk awareness prototype. It is not a replacement for official emergency warnings, professional engineering design, detailed hydraulic modelling, or emergency management instructions. A risk category describes modelled relative risk under the available conditions; it does not guarantee that flooding will or will not occur.

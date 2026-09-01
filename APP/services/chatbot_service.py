@@ -4,6 +4,7 @@ Provides AI-powered responses using Google's Gemini with detailed system instruc
 """
 
 import os
+from pathlib import Path
 import streamlit as st
 
 try:
@@ -986,6 +987,28 @@ WHAT environmental and drainage factors contribute to it,
 and HOW citizens can help improve the information available to FloodWatch.
 """
 
+NAVIGATION_REFERENCE_PATH = (
+    Path(__file__).resolve().parent.parent / "data" / "floodwatch_navigation.txt"
+)
+
+
+@st.cache_data(show_spinner=False)
+def load_navigation_reference() -> str:
+    """Load the maintained app-navigation reference for AMA."""
+    try:
+        return NAVIGATION_REFERENCE_PATH.read_text(encoding="utf-8")
+    except OSError:
+        return "Navigation reference unavailable. Rely only on verified application behavior."
+
+
+SYSTEM_INSTRUCTION = (
+    f"{SYSTEM_INSTRUCTION}\n\n"
+    "==================================================\n"
+    "CURRENT APPLICATION NAVIGATION REFERENCE\n"
+    "==================================================\n\n"
+    f"{load_navigation_reference()}"
+)
+
 
 @st.cache_resource
 def get_chatbot_client():
@@ -1005,13 +1028,14 @@ def get_chatbot_client():
         return None
 
 
-def get_chatbot_response(user_message, system_context=""):
+def get_chatbot_response(user_message, system_context="", conversation_history=None):
     """
     Get a response from Google Gemini with detailed system instructions.
     
     Args:
         user_message: The user's question
         system_context: Optional context about user's current flood assessment
+        conversation_history: Recent messages from the current chat session
     
     Returns:
         str: The chatbot's response
@@ -1024,6 +1048,22 @@ def get_chatbot_response(user_message, system_context=""):
         full_instruction = SYSTEM_INSTRUCTION
         if system_context:
             full_instruction += f"\n\n## USER'S CURRENT ASSESSMENT:\n{system_context}"
+
+        history_text = ""
+        if conversation_history:
+            history_text = "\n\n## RECENT CHAT CONTEXT:\n" + "\n".join(
+                f"{message.get('role', 'user').title()}: {message.get('content', '')}"
+                for message in conversation_history[-6:]
+            )
+
+        full_instruction += (
+            "\n\n## RESPONSE REQUIREMENTS:\n"
+            "Answer the user's complete question in one response. "
+            "For how-to questions, give the full numbered steps and finish the list. "
+            "Do not stop after an introduction or say that you will continue later. "
+            "Keep the answer practical and concise."
+            + history_text
+        )
         
         model = genai.GenerativeModel(
             "gemini-3.6-flash",
@@ -1033,12 +1073,15 @@ def get_chatbot_response(user_message, system_context=""):
         response = model.generate_content(
             user_message,
             generation_config=genai.types.GenerationConfig(
-                max_output_tokens=500,
+                max_output_tokens=800,
                 temperature=0.3,  # Low temp = accurate, factual responses
             ),
         )
-        
-        return response.text
+
+        answer = getattr(response, "text", "")
+        if answer and answer.strip():
+            return answer.strip()
+        return "I could not complete that answer. Please ask the question again."
     
     except Exception as e:
         st.error(f"Chatbot error: {e}")

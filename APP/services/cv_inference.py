@@ -8,10 +8,10 @@ MODEL_PATH = os.path.join(BASE_DIR, "MODELS", "drain_classifier.pth")
 
 CLASS_MAPPING = {
     0: {"condition": "Not a Drain / Invalid Photo", "score": 0.0, "code": 0, "is_drain": False},
-    0: {"condition": "Clear / Low Blockage (0–25%)", "score": 0.25, "code": 0, "is_drain": True},
-    1: {"condition": "Minor Blockage (25–50%)", "score": 0.50, "code": 1, "is_drain": True},
-    2: {"condition": "Partially Blocked (50–75%)", "score": 0.75, "code": 2, "is_drain": True},
-    3: {"condition": "Severely Blocked (75–100%)", "score": 1.00, "code": 3, "is_drain": True}
+    1: {"condition": "Clear / Low Blockage (0–25%)", "score": 0.25, "code": 0, "is_drain": True},
+    2: {"condition": "Minor Blockage (25–50%)", "score": 0.50, "code": 1, "is_drain": True},
+    3: {"condition": "Partially Blocked (50–75%)", "score": 0.75, "code": 2, "is_drain": True},
+    4: {"condition": "Severely Blocked (75–100%)", "score": 1.00, "code": 3, "is_drain": True}
 }
 
 @st.cache_resource(show_spinner=False)
