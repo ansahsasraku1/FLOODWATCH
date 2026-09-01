@@ -9,6 +9,10 @@ DATA/*
 !DATA/Kisseman_slope.tif
 !DATA/Kisseman_facc.tif
 !DATA/Kisseman_dem.tif
+!DATA/png_data/
+DATA/png_data/*
+!DATA/png_data/*.png
+!DATA/png_data/*.pgw
 FIELD_DATA_backup/
 MODELS/
 !MODELS/
