@@ -19,7 +19,7 @@ def render_user_guide():
         unsafe_allow_html=True,
     )
 
-    render_image_banner("user_guide.jpg")
+    render_image_banner("userguide.jpg")
     #st.markdown("## FloodWatch User Guide")
     st.markdown(
         "FloodWatch helps you understand local flood risk using drainage observations, "

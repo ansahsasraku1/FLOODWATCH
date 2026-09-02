@@ -54,8 +54,8 @@ else:
 
         #st.markdown("## 🌧️ Check My Flood Risk")
         #st.write("View real-time risk scores based on local terrain, current 7-day rainfall, and nearby drainage conditions.")
-        #render_video_banner("floodwatch_banner.mp4", height=220)
-        render_video_banner("check_risk.mp4")
+        render_video_banner("check_risk.mp4", height=150)
+        #render_video_banner("check_risk.mp4")
         st.write("View real-time risk scores based on local terrain, rainfall prediction, and nearby drainage conditions.")
 
 
@@ -202,7 +202,7 @@ else:
         from components.banners import render_image_banner
 
         #st.markdown("## 👨🏾‍💻 Developer & System Hub")
-        render_image_banner("dev_hub.jpg")
+        render_image_banner("devhub.jpg")
         
         tab1, tab2 = st.tabs(["Developer Profile", "Admin Moderation Queue"])
         

@@ -9,7 +9,7 @@ from components.banners import render_image_banner
 def render_camera_workflow(user_lat=None, user_lng=None):
     #st.title("📷 Capture & Submit Field Report")
     #st.write("Upload a drainage photo, verify observations, and record field data.")
-    render_image_banner("report.jpg")
+    render_image_banner("report_.jpg")
     
 
 

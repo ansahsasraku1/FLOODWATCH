@@ -9,6 +9,7 @@ from services.risk_engine import calculate_flood_risk
 from services.asset_paths import get_asset_path
 
 
+
 # def render_floating_audio_player(audio_bytes: bytes):
 #     """Render a fixed-position audio control for the current risk result."""
 #     if not audio_bytes:
@@ -49,21 +50,63 @@ def render_risk_results(risk_data: dict, rainfall_data: dict, nearest_points: li
     top_pt = nearest_points[0] if nearest_points else {}
     landmark = top_pt.get('Nearest_Landmark') or "your area"
 
-    # Banner video for this page, editable here when needed.
-    video_path = get_asset_path("check_risk.mp4")
-    if os.path.exists(video_path):
-        with open(video_path, "rb") as video_file:
-            video_bytes = video_file.read()
-        b64_video = base64.b64encode(video_bytes).decode("utf-8")
-        st.markdown(
-            f"""
-            <video autoplay loop muted playsinline
-                   style="width:100%; height:160px; object-fit:cover; border-radius:12px; margin-bottom:16px;">
-                <source src="data:video/mp4;base64,{b64_video}" type="video/mp4">
-            </video>
-            """,
-            unsafe_allow_html=True,
-        )
+    # --- Intro Guide Video ---
+    video_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+        "APP", "assets", "check_risk.mp4"
+    )
+    # import base64
+    # import os
+    # import streamlit as st
+
+    # # Locate the root folder of your project dynamically:
+    # # 1. Path of this file
+    # current_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # # 2. Traverse up to the main project root (adjust parents if needed)
+    # # If this file is inside APP/components or APP/pages, navigate to project root:
+    # project_root = os.path.abspath(os.path.join(current_dir, "..", "..")) 
+
+    # # 3. Target the file in APP/assets/
+    # video_path = os.path.join(project_root, "APP", "assets", "check_risk.mp4")
+
+    # # Alternative: If this current script itself is in the project root:
+    # # video_path = os.path.join(current_dir, "APP", "assets", "check_risk.mp4")
+
+    # if os.path.exists(video_path):
+    #     with open(video_path, "rb") as video_file:
+    #         video_bytes = video_file.read()
+        
+    #     b64_video = base64.b64encode(video_bytes).decode("utf-8")
+        
+    #     st.markdown(
+    #         f"""
+    #         <video autoplay loop muted playsinline
+    #             style="width:100%; height:160px; object-fit:cover; border-radius:12px; margin-bottom:16px;">
+    #             <source src="data:video/mp4;base64,{b64_video}" type="video/mp4">
+    #         </video>
+    #         """,
+    #         unsafe_allow_html=True,
+    #     )
+    # else:
+    #     # Diagnostic alert to show you the exact path Python tried to open
+    #     st.error(f"⚠️ Video not found at: `{video_path}`")
+        
+    # # Banner video for this page, editable here when needed.
+    # video_path = get_asset_path("check_risk.mp4")
+    # if os.path.exists(video_path):
+    #     with open(video_path, "rb") as video_file:
+    #         video_bytes = video_file.read()
+    #     b64_video = base64.b64encode(video_bytes).decode("utf-8")
+    #     st.markdown(
+    #         f"""
+    #         <video autoplay loop muted playsinline
+    #                style="width:100%; height:160px; object-fit:cover; border-radius:12px; margin-bottom:16px;">
+    #             <source src="data:video/mp4;base64,{b64_video}" type="video/mp4">
+    #         </video>
+    #         """,
+    #         unsafe_allow_html=True,
+    #     )
 
     # 1. Primary Risk Banner Card
     st.markdown(

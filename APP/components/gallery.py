@@ -62,9 +62,9 @@ def get_point_risk_bucket(point: dict) -> str:
 def render_community_gallery(survey_points: list[dict]):
     """Renders a grid gallery of survey photos with CV blockage stats."""
     #st.markdown("### Community Drainage Gallery")
-    #st.write("Browse field photos and AI-assisted blockage diagnostics captured across Kisseman.")
+    #st.write("Browse bh field photos and AI-assisted blockage diagnostics captured across Kisseman.")
 
-    render_image_banner("community_gallery.jpg")
+    render_image_banner("communitygallery.jpg")
 
     # ... rest of the file unchanged from here
 

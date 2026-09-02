@@ -230,7 +230,7 @@ def compute_point_risk_category(point: dict, fallback: str = "Low", rainfall_mm:
 
 def render_interactive_map(survey_points: list[dict], center_lat: float = 5.6483, center_lng: float = -0.2079, rainfall_mm: float | None = None):
     #st.markdown("### 🗺️ Interactive Flood Risk Map — Kisseman")
-    render_image_banner("flood_map.jpg")
+    render_image_banner("floodmap.jpg")
     spatial_analyst_enabled = st.toggle("Spatial Analyst", value=False, key="map_spatial_analyst")
     show_layer_controls, show_point_analysis = get_spatial_analyst_map_state(spatial_analyst_enabled)
     rainfall_for_points = safe_float(rainfall_mm, 45.0)
