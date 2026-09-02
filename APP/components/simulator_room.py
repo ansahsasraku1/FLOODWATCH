@@ -30,7 +30,7 @@ def haversine_distance(lat1, lng1, lat2, lng2):
 
 def render_simulator_room():
     """Render the interactive rainfall simulator."""
-    render_image_banner("flood_map.jpg")
+    render_image_banner("sim_room.jpg")
     
     st.markdown("##### Flood Risk Simulator Room")
     st.write("Test different rainfall scenarios and see how nearby gutter points respond to varying conditions.")

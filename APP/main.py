@@ -146,10 +146,12 @@ else:
 
         # Load dataset on-demand for map rendering
         survey_points = get_unified_survey_points()
+        rainfall = get_rainfall_forecast(st.session_state.user_lat, st.session_state.user_lng)
         render_interactive_map(
-            survey_points=survey_points, 
-            center_lat=st.session_state.user_lat, 
-            center_lng=st.session_state.user_lng
+            survey_points=survey_points,
+            center_lat=st.session_state.user_lat,
+            center_lng=st.session_state.user_lng,
+            rainfall_mm=rainfall.get("total_7day", 45.0)
         )
 
     # ------------------------------------------------------------------

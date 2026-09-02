@@ -17,7 +17,7 @@ def calculate_flood_risk(
         (0.5 * rainfall_score) +
         (0.125 * float(1 -slope_score)) +
         (0.125 * float(flow_acc_score)) +
-        (0.125 * float(capacity_risk)) +
+        (0.123 * float(capacity_risk)) +
         (0.125 * float(lulc_risk))
     )
     

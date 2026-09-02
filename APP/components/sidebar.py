@@ -49,7 +49,7 @@ def render_sidebar() -> str:
         nav_options = {
             "Check My Risk": "🌧️ Check My Flood Risk",
             "Interactive Map": "🗺️ Flood Map",
-            "Simulator Room": "🌊 Rainfall Simulator",
+            "Simulator Room": "🌊 Flood Simulator Room",
             #"Flood History": "📜 Flood History",
             "Community Gallery": "🖼️ Community Gallery",
             "User Guide": "📖 User Guide",
@@ -82,10 +82,12 @@ def render_sidebar() -> str:
             <div style="font-size: 0.8rem; color: #94A3B8; padding: 10px 0;">
                 <strong>Developer:</strong> {DEVELOPER_PROFILE['name']}<br>
                 <strong>Affiliation:</strong> KNUST Geomatic Engineering Dept<br>
-                <span style="color: #2EC4B6;">● System Active</span>
+                <span style="color: #2EC4B6;">● System Active</span><br>
+                <span style="color: #94A3B8;">FLOODWATCH 1.0.2</span>
             </div>
             """,
             unsafe_allow_html= True
         )
+        
 
     return st.session_state.active_nav

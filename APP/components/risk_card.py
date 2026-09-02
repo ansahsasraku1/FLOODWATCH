@@ -6,25 +6,26 @@ import pandas as pd
 from services.audio_guide import generate_twi_audio
 from services.cv_inference import get_photo_path_by_id
 from services.risk_engine import calculate_flood_risk
+from services.asset_paths import get_asset_path
 
 
-def render_floating_audio_player(audio_bytes: bytes):
-    """Render a fixed-position audio control for the current risk result."""
-    if not audio_bytes:
-        return
+# def render_floating_audio_player(audio_bytes: bytes):
+#     """Render a fixed-position audio control for the current risk result."""
+#     if not audio_bytes:
+#         return
 
-    b64_audio = base64.b64encode(audio_bytes).decode("utf-8")
-    st.markdown(
-        f"""
-        <div style="position: fixed; right: clamp(12px, 2vw, 28px); bottom: clamp(12px, 2vw, 24px); z-index: 9999; width: min(92vw, 360px); background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(148, 163, 184, 0.35); border-radius: 14px; padding: clamp(10px, 1.4vw, 16px); box-shadow: 0 12px 30px rgba(0,0,0,0.28);">
-            <div style="font-size: clamp(0.8rem, 1.4vw, 0.96rem); color: #E2E8F0; margin-bottom: 8px; font-weight: 700;">🔊 Audio Guide</div>
-            <audio controls autoplay style="width: 100%; height: clamp(32px, 3vw, 42px);">
-                <source src="data:audio/mp3;base64,{b64_audio}" type="audio/mpeg">
-            </audio>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+#     b64_audio = base64.b64encode(audio_bytes).decode("utf-8")
+#     st.markdown(
+#         f"""
+#         <div style="position: fixed; right: clamp(12px, 2vw, 28px); bottom: clamp(12px, 2vw, 24px); z-index: 9999; width: min(92vw, 360px); background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(148, 163, 184, 0.35); border-radius: 14px; padding: clamp(10px, 1.4vw, 16px); box-shadow: 0 12px 30px rgba(0,0,0,0.28);">
+#             <div style="font-size: clamp(0.8rem, 1.4vw, 0.96rem); color: #E2E8F0; margin-bottom: 8px; font-weight: 700;">🔊 Audio Guide</div>
+#             <audio controls autoplay style="width: 100%; height: clamp(32px, 3vw, 42px);">
+#                 <source src="data:audio/mp3;base64,{b64_audio}" type="audio/mpeg">
+#             </audio>
+#         </div>
+#         """,
+#         unsafe_allow_html=True,
+#     )
 
 
 def render_risk_results(risk_data: dict, rainfall_data: dict, nearest_points: list, user_lat: float = None, user_lng: float = None, on_contribute_click=None):
@@ -33,6 +34,7 @@ def render_risk_results(risk_data: dict, rainfall_data: dict, nearest_points: li
     the nearest surveyed drainage point, and (optionally) the Twi audio guide.
     Includes the update gutter point form before rainfall chart.
     """
+    nearest_points = nearest_points or []
     risk_color_map = {
         "High": {"bg": "#FF4D4D22", "border": "#FF4D4D", "text": "#FF4D4D", "icon": "🚨"},
         "Moderately High": {"bg": "#FFA50022", "border": "#FFA500", "text": "#FFA500", "icon": "⚠️"},
@@ -46,6 +48,22 @@ def render_risk_results(risk_data: dict, rainfall_data: dict, nearest_points: li
 
     top_pt = nearest_points[0] if nearest_points else {}
     landmark = top_pt.get('Nearest_Landmark') or "your area"
+
+    # Banner video for this page, editable here when needed.
+    video_path = get_asset_path("check_risk.mp4")
+    if os.path.exists(video_path):
+        with open(video_path, "rb") as video_file:
+            video_bytes = video_file.read()
+        b64_video = base64.b64encode(video_bytes).decode("utf-8")
+        st.markdown(
+            f"""
+            <video autoplay loop muted playsinline
+                   style="width:100%; height:160px; object-fit:cover; border-radius:12px; margin-bottom:16px;">
+                <source src="data:video/mp4;base64,{b64_video}" type="video/mp4">
+            </video>
+            """,
+            unsafe_allow_html=True,
+        )
 
     # 1. Primary Risk Banner Card
     st.markdown(
@@ -139,8 +157,8 @@ def render_risk_results(risk_data: dict, rainfall_data: dict, nearest_points: li
     st.markdown("##### **7-Day Rainfall Forecast**")
 
     # 3. Rainfall Forecast Display
-    dates = rainfall_data.get("dates", [])
-    daily = rainfall_data.get("daily", [])
+    dates = rainfall_data.get("dates", []) or []
+    daily = rainfall_data.get("daily") or rainfall_data.get("daily_breakdown", []) or []
 
     if dates and daily:
         total_rainfall = sum(daily)

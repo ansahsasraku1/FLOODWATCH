@@ -131,17 +131,118 @@ def safe_float(value, default=0.0):
     except (ValueError, TypeError):
         return default
 
+def render_map_legends():
+    """Render color legends for LULC, Slope, Flow Accumulation, and Elevation maps."""
+    st.markdown("#### Map Legends")
+    
+    col1, col2, col3, col4 = st.columns(4)
 
-def render_interactive_map(survey_points: list[dict], center_lat: float = 5.6493, center_lng: float = -0.2069):
+    # --- LULC Legend ---
+    with col1:
+        st.caption("**Land Use / Land Cover**")
+        st.markdown(
+            """
+            <div style="display: flex; flex-direction: column; gap: 4px; font-size: 12px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="background-color: #228B22; width: 16px; height: 16px; display: inline-block; border-radius: 3px;"></span>
+                    <span>Vegetation</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="background-color: #FF0000; width: 16px; height: 16px; display: inline-block; border-radius: 3px;"></span>
+                    <span>Built-up</span>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+        st.markdown("----")
+
+    # --- Slope Legend ---
+    with col2:
+        st.caption("**Slope (%)**")
+        st.markdown(
+            """
+            <div style="font-size: 11px;">
+                <div style="background: linear-gradient(to right, #00DC32, #FFFF32, #FF0000); height: 12px; border-radius: 3px; margin-bottom: 4px;"></div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Gentle (Flat)</span>
+                    <span>Steep</span>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+        st.markdown("----")
+    # --- Flow Accumulation Legend ---
+    with col3:
+        st.caption("**Flow Accumulation**")
+        st.markdown(
+            """
+            <div style="font-size: 11px;">
+                <div style="background: linear-gradient(to right,#0014D2, #78EBFF,#FFFFFF ); height: 12px; border-radius: 3px; border: 1px solid #ddd; margin-bottom: 4px;"></div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Low</span>
+                    <span>High</span>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+        st.markdown("----")
+    # --- Elevation Legend ---
+    with col4:
+        st.caption("**Elevation (DEM)**")
+        st.markdown(
+            """
+            <div style="font-size: 11px;">
+                <div style="background: linear-gradient(to right, #00DC3C, #FFFF32, #A52A2A, #FFFFFF); height: 12px; border-radius: 3px; border: 1px solid #ddd; margin-bottom: 4px;"></div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Low</span>
+                    <span>High</span>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+def get_spatial_analyst_map_state(enabled: bool | None = None) -> tuple[bool, bool]:
+    """Return the map controls + point-analysis visibility derived from a single toggle."""
+    analyst_enabled = bool(st.session_state.get("map_spatial_analyst", False)) if enabled is None else bool(enabled)
+    return analyst_enabled, not analyst_enabled
+
+
+def compute_point_risk_category(point: dict, fallback: str = "Low", rainfall_mm: float = 45.0) -> str:
+    """Use the same risk engine thresholds as the main risk calculation."""
+    try:
+        result = calculate_flood_risk(
+            block_score=safe_float(point.get("BlockScore"), 0.2),
+            rainfall_mm=safe_float(rainfall_mm, 45.0),
+            slope_score=safe_float(point.get("Slope_Score"), 0.2),
+            flow_acc_score=safe_float(point.get("FlowAcc_Score"), 0.0),
+            capacity_risk=safe_float(point.get("Capacity_Risk"), 0.5),
+            lulc_risk=safe_float(point.get("LULC_Risk"), 1.0),
+            is_daily_rainfall=False,
+        )
+        return result.get("category", fallback)
+    except (TypeError, ValueError):
+        return fallback
+
+
+def render_interactive_map(survey_points: list[dict], center_lat: float = 5.6483, center_lng: float = -0.2079, rainfall_mm: float | None = None):
     #st.markdown("### 🗺️ Interactive Flood Risk Map — Kisseman")
     render_image_banner("flood_map.jpg")
+    spatial_analyst_enabled = st.toggle("Spatial Analyst", value=False, key="map_spatial_analyst")
+    show_layer_controls, show_point_analysis = get_spatial_analyst_map_state(spatial_analyst_enabled)
+    rainfall_for_points = safe_float(rainfall_mm, 45.0)
     #st.caption("💡 *Tap a survey point to view its photo and details. Tap empty ground for a new prediction.*")
+    if rainfall_for_points <= 0:
+        rainfall_for_points = 45.0
 
     # --- DEBUG: how many points are we even dealing with? ---
     #st.write(f"DEBUG: survey_points count = {len(survey_points) if survey_points else 0}")
 
-    c_lat = float(center_lat) if center_lat else 5.6493
-    c_lng = float(center_lng) if center_lng else -0.2069
+    c_lat = float(center_lat) if center_lat else 5.6483
+    c_lng = float(center_lng) if center_lng else -0.2079    
 
     st.markdown("##### 📍 Use my current location")
     location = streamlit_geolocation()
@@ -453,8 +554,10 @@ def render_interactive_map(survey_points: list[dict], center_lat: float = 5.6493
             except (ValueError, TypeError):
                 continue
 
-            risk_lvl = pt.get("Risk_Level", "Low")
+            risk_lvl = compute_point_risk_category(pt, rainfall_mm=rainfall_for_points)
             landmark = pt.get("Nearest_Landmark", "Drainage Point")
+            if risk_lvl not in color_map:
+                risk_lvl = "Low"
             marker_color = color_map.get(risk_lvl, "gray")
             key = (round(lat, 6), round(lng, 6))
             point_lookup[key] = pt
@@ -471,26 +574,27 @@ def render_interactive_map(survey_points: list[dict], center_lat: float = 5.6493
     survey_group.add_to(m)
     #st.write(f"DEBUG: Markers added in {time.time()-t1:.2f}s")
 
-    folium.LayerControl(
-        position="topright",
-        collapsed=True,
-        title="Layers"
-    ).add_to(m)
+    if show_layer_controls:
+        folium.LayerControl(
+            position="topright",
+            collapsed=True,
+            title="Layers"
+        ).add_to(m)
 
-    opacity_rows = "".join(
-        f'<label class="fw-opacity-row">'
-        f'<span>{json.dumps(item["label"])[1:-1]}</span>'
-        f'<input type="range" min="0" max="1" step="0.05" value="{item["opacity"]:.2f}" '
-        f'data-mode="{item["mode"]}">'
-        f'<output>{item["opacity"]:.2f}</output>'
-        f'</label>'
-        for item in visible_overlay_controls
-    )
-    opacity_control = MapOpacityControl(visible_overlay_controls)
-    opacity_control.rows_html = opacity_rows
-    m.add_child(opacity_control)
+        opacity_rows = "".join(
+            f'<label class="fw-opacity-row">'
+            f'<span>{json.dumps(item["label"])[1:-1]}</span>'
+            f'<input type="range" min="0" max="1" step="0.05" value="{item["opacity"]:.2f}" '
+            f'data-mode="{item["mode"]}">'
+            f'<output>{item["opacity"]:.2f}</output>'
+            f'</label>'
+            for item in visible_overlay_controls
+        )
+        opacity_control = MapOpacityControl(visible_overlay_controls)
+        opacity_control.rows_html = opacity_rows
+        m.add_child(opacity_control)
 
-    opacity_control_style = """\n<style>
+        opacity_control_style = """\n<style>
 .fw-opacity-control {
     background: white;
     border: 2px solid rgba(0, 0, 0, 0.2);
@@ -527,12 +631,14 @@ def render_interactive_map(survey_points: list[dict], center_lat: float = 5.6493
 .fw-opacity-row output { font-size: 10px; text-align: right; }
 </style>
 """
-    m.get_root().header.add_child(folium.Element(opacity_control_style))
+        m.get_root().header.add_child(folium.Element(opacity_control_style))
 
     t2 = time.time()
     map_data = st_folium(m, use_container_width=True, height=355, key="interactive_kisseman_map")
     #st.write(f"DEBUG: st_folium returned in {time.time()-t2:.2f}s")
-
+    # --- RENDER LEGENDS BELOW MAP CANVAS WHEN SPATIAL ANALYST IS TOGGLED ON ---
+    if spatial_analyst_enabled:
+        render_map_legends()
     clicked_obj = map_data.get("last_object_clicked") if map_data else None
     last_clicked = map_data.get("last_clicked") if map_data else None
 
@@ -542,9 +648,9 @@ def render_interactive_map(survey_points: list[dict], center_lat: float = 5.6493
         click_lat = float(last_clicked["lat"])
         click_lng = float(last_clicked["lng"])
 
-    if click_lat is not None and click_lng is not None:
+    if show_point_analysis and click_lat is not None and click_lng is not None:
         st.markdown("---")
-        st.subheader("📍 Spatial Analysis")
+        st.subheader("Point Analyst Tool")
         col1, col2 = st.columns(2)
 
         with col1:
@@ -564,13 +670,13 @@ def render_interactive_map(survey_points: list[dict], center_lat: float = 5.6493
             st.write(f"**Flow accumulation:** `{flow_value}`" if flow_value is not None else "**Flow accumulation:** `Unavailable`")
 
         with col2:
-            lulc_factor = 1.0 if lulc_class == "Built-up" else 0.4
+            lulc_factor = 1.0 if lulc_class == "Built-up" else 0
             pred = calculate_flood_risk(
                 block_score=0.50,
-                rainfall_mm=45.0,
+                rainfall_mm=rainfall_for_points,
                 slope_score=0.35 if slope_score is None else float(slope_score),
                 lulc_risk=lulc_factor,
-                is_daily_rainfall=True
+                is_daily_rainfall=False
             )
             st.metric(label="Predicted Flood Risk", value=pred["category"], delta=f"Score: {pred['score']}")
             st.info(f"**Status:** {pred['label']}")
@@ -584,10 +690,10 @@ def render_interactive_map(survey_points: list[dict], center_lat: float = 5.6493
             landmark = pt.get("Nearest_Landmark", "Drainage Point")
             gutter = pt.get("Gutter_Type", "Unknown Channel")
             block_score = safe_float(pt.get("BlockScore"), 0.0)
-            risk_lvl = pt.get("Risk_Level", "Low")
+            risk_lvl = compute_point_risk_category(pt, rainfall_mm=rainfall_for_points)
             photo_id = pt.get("Photo_ID", "")
 
-            st.subheader(f"📍 Gutter Information: {landmark}")
+            st.subheader(f"Gutter Information: {landmark}")
             col3, col4 = st.columns([1, 1])
 
             with col3:

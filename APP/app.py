@@ -26,6 +26,7 @@ from services.logger import log_prediction
 # Component Imports
 from components.splash import render_splash
 from components.sidebar import render_sidebar
+from components.banners import render_video_banner
 from components.risk_card import render_risk_results
 from components.camera import render_camera_workflow
 from components.admin_panel import render_admin_panel
@@ -55,6 +56,7 @@ else:
     # ROUTE 1: CHECK MY FLOOD RISK
     # ------------------------------------------------------------------
     if active_route == "Check My Risk":
+        render_video_banner("check_risk.mp4")
         st.markdown("## 🌧️ Check My Flood Risk")
         st.write("View real-time risk scores based on local terrain, current 7-day rainfall, and nearby drainage conditions.")
 
@@ -124,10 +126,12 @@ else:
     elif active_route == "Interactive Map":
         # Load dataset on-demand for map rendering
         survey_points = get_unified_survey_points()
+        rainfall = get_rainfall_forecast(st.session_state.user_lat, st.session_state.user_lng)
         render_interactive_map(
-            survey_points=survey_points, 
-            center_lat=st.session_state.user_lat, 
-            center_lng=st.session_state.user_lng
+            survey_points=survey_points,
+            center_lat=st.session_state.user_lat,
+            center_lng=st.session_state.user_lng,
+            rainfall_mm=rainfall.get("total_7day", 45.0)
         )
 
     # ------------------------------------------------------------------
