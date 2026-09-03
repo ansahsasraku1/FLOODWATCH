@@ -50,11 +50,11 @@ def render_risk_results(risk_data: dict, rainfall_data: dict, nearest_points: li
     top_pt = nearest_points[0] if nearest_points else {}
     landmark = top_pt.get('Nearest_Landmark') or "your area"
 
-    # --- Intro Guide Video ---
-    video_path = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-        "APP", "assets", "check_risk.mp4"
-    )
+    # # --- Intro Guide Video ---
+    # video_path = os.path.join(
+    #     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    #     "APP", "assets", "check_risk.mp4"
+    #)
     # import base64
     # import os
     # import streamlit as st
@@ -125,30 +125,30 @@ def render_risk_results(risk_data: dict, rainfall_data: dict, nearest_points: li
         unsafe_allow_html=True
     )
 
-    # --- Audio Guide: always refresh based on the current station/result ---
-    st.sidebar.markdown("### 🔊 Accessibility Settings")
-    enable_audio = st.sidebar.toggle("Enable Audio Guide", value=False, key="audio_toggle")
+    # # --- Audio Guide: always refresh based on the current station/result ---
+    # st.sidebar.markdown("### 🔊 Accessibility Settings")
+    # enable_audio = st.sidebar.toggle("Enable Audio Guide", value=False, key="audio_toggle")
 
-    current_audio_key = (
-        f"risk:{cat}:{score:.4f}:{landmark}:"
-        f"{st.session_state.get('user_lat', 0):.5f}:{st.session_state.get('user_lng', 0):.5f}"
-    )
+    # current_audio_key = (
+    #     f"risk:{cat}:{score:.4f}:{landmark}:"
+    #     f"{st.session_state.get('user_lat', 0):.5f}:{st.session_state.get('user_lng', 0):.5f}"
+    # )
 
-    if enable_audio:
-        audio_bytes = st.session_state.get("risk_audio_bytes")
-        saved_key = st.session_state.get("risk_audio_key")
+    # if enable_audio:
+    #     audio_bytes = st.session_state.get("risk_audio_bytes")
+    #     saved_key = st.session_state.get("risk_audio_key")
 
-        if saved_key != current_audio_key or not audio_bytes:
-            with st.spinner("Generating audio guide for this station..."):
-                audio_fp = generate_twi_audio(cat, score, landmark)
-                audio_bytes = audio_fp.getvalue() if audio_fp else None
-            st.session_state["risk_audio_bytes"] = audio_bytes
-            st.session_state["risk_audio_key"] = current_audio_key
+    #     if saved_key != current_audio_key or not audio_bytes:
+    #         with st.spinner("Generating audio guide for this station..."):
+    #             audio_fp = generate_twi_audio(cat, score, landmark)
+    #             audio_bytes = audio_fp.getvalue() if audio_fp else None
+    #         st.session_state["risk_audio_bytes"] = audio_bytes
+    #         st.session_state["risk_audio_key"] = current_audio_key
 
-        render_floating_audio_player(audio_bytes)
-    else:
-        st.session_state.pop("risk_audio_bytes", None)
-        st.session_state.pop("risk_audio_key", None)
+    #     render_floating_audio_player(audio_bytes)
+    # else:
+    #     st.session_state.pop("risk_audio_bytes", None)
+    #     st.session_state.pop("risk_audio_key", None)
 
     # 2. Nearest Survey Point Linked to Calculation
     if nearest_points:
